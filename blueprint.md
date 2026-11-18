@@ -27,11 +27,11 @@
 ### 0.2 裁决记录（已定，执行时不再讨论）
 
 1. **另起新项目（服主 2026-11-17 终裁）**：不基于 CatMaid v1 仓库升级，而是新建本仓库（TouhouLittleMaid）完整重写；v1 仓库（`d:\work\女仆插件`）整体冻结为移植参考源，"照抄 v1"组件从那里逐文件搬运，不整体复制 src。理由：架构解耦要求 Citizens/BM/CE 调用被压进唯一平台适配层，而 v1 全部行为与 Manager 直接引用这些 API，改造成本等于重写；v1 的 Mode 五模式、铃铛死亡链、右键喂食在 v2 中本来就要被 TLM 原型推翻。
-2. **命名与数据键（服主 2026-11-17）**：插件名/命令/包名/DB 目录取新名（TouhouLittleMaid、`/tlm`、`dev.touhoulittlemaid`、`plugins/TouhouLittleMaid/tlm.db`）；**但 PDC 键与 CE 物品 id 沿用 `catmaid:` 前缀**（PDC 键只是字符串，与插件名解耦；v1 玩家手中的魂符/铃铛/胶片凭证与 CE 物品定义零改名兼容，识别层不写两套）。
+2. **命名与数据键（服主 2026-11-17；后半被 R2 修订 2026-11-18 服主终裁推翻）**：插件名/命令/包名/DB 目录取新名（TouhouLittleMaid、`/tlm`、`dev.touhoulittlemaid`、`plugins/TouhouLittleMaid/tlm.db`）；**PDC 键与 CE 物品 id 一律用 `touhoulittlemaid:` 前缀**（R2 裁决：全新项目零 v1 兼容——原"沿用 `catmaid:` 以零改名兼容 v1 凭证"方案随 v1 兼容整体废止而作废，见 0.10；禁止使用 `catmaid:` 遗留键）。
 3. **三项产品裁决（服主 2026-11-17）**：
    - **台词系统完全 TLM 化**：删除 v1 `dialogue.yml` 全部文字台词与 `DialogueManager`；对白表现 = 事件语音（ogg，经 CE 资源包 `sounds.json` 下发）+ 颜文字聊天气泡（TextDisplay）。
    - **删除右键喂食**：TLM 无此交互。好感来源改为三餐/偷吃/睡觉/娱乐等 TLM 渠道（见 P7 数值表）。
-   - **魂符先行、祭坛进主线后段**：前期沿用 v1 三态魂符召唤（P1 移植），祭坛多方块 + P 点作为 P11 独立阶段，完成后成为正式获取/复活仪式（魂符保留为 v1 老玩家兼容入口，`config.acquisition.allow-talisman: true`）。
+   - **魂符先行、祭坛进主线后段**：前期用三态魂符召唤（机制照抄 v1 实现姿势，P1 落地，PDC 键用 `touhoulittlemaid:` 新前缀），祭坛多方块 + P 点作为 P11 独立阶段，完成后成为正式获取/复活仪式（魂符保留为**永久并行获取口**，`config.acquisition.allow-talisman: true`——R2：不再是"v1 老玩家兼容入口"，v1 兼容已整体废止）。
 4. **资源包与模型可见性（服主 2026-11-17）**：模型包两层分发——基础包强制（CE 合并统一下发）；**扩展模型包纯手动下载**（玩家自己下载 zip 安装，服务端不推送——模型会越来越多，服务器流量扛不住每次全员下发），插件用 `/tlm pack claim` 自声明（**可 `unclaim` 取消**）；未声明者对该层模型的女仆**整体隐藏**（绝不出现紫黑块）；同时保留 v1 的玩家级"一键隐藏全部女仆"开关（`/tlm hide`，给不喜欢猫娘的玩家）。细则见 0.13。
 5. **东方系模型纳入（服主 2026-11-17，本项目核心目标）**：v1 只接入了 27 个酒狐系模型，因为东方原生系模型（旧命名空间 265 个）动画硬编码在 TLM 客户端 Java 里、无 json 可注（2026-11-17 调查已定位：`client/animation/inner/MaidBaseAnimation.java` 等，骨骼为小写 `head/armRight/armLeft/legLeft/legRight`）。本项目以 **M 轮资产管线**（0.12）解决：几何转换修复 + 硬编码动画烘焙 + 挂点骨注入，把东方原生系模型加入可玩池。
 6. **依赖策略**：Citizens/BetterModel 保留（自研替代成本远超收益，无免费现成替代品）；三者的调用**只允许出现在 `platform/impl/` 三个适配器内**（0.4 三环纪律）。全部免费可得。
@@ -48,7 +48,7 @@
 | `Mode` 五模式枚举（IDLE/FOLLOW/COMBAT/FARM/RANCH） | **任务（MaidTask，22 个）+ 核心行为（跟随/坐下/拾物/乞食/三餐）+ 日程活动门** | TLM 结构：一次只挂一个任务；跟随是常驻行为不是模式；坐下是硬拦截 [规格书 §3] |
 | 好感度 0-100、5 档、百分比加成 | **好感度 0-384、4 档、档位直接重设血量/攻击/触及/横扫/饰品行**（0.7） | [规格书 §2.1] |
 | 右键喂食 +1（60s 冷却） | 删除。三餐任务自动进食 + 偷吃 + 睡觉/娱乐/棋局加分 | [规格书 §1.5/§2.2] |
-| 死亡 → 铃铛（BELL）+ 钻石复活 | **死亡三段链：墓碑实体（收全部物品）→ 胶片（存女仆数据）→ 神社复活（扣血）/祭坛复活配方** | [规格书 §12]；v1 铃铛物品在迁移时转为胶片 |
+| 死亡 → 铃铛（BELL）+ 钻石复活 | **死亡三段链：墓碑实体（收全部物品）→ 胶片（存女仆数据）→ 神社复活（扣血）/祭坛复活配方** | [规格书 §12]（R2：v1 铃铛不做转换，见 0.10） |
 | 台词 `dialogue.yml` 聊天栏文字 | 删除。语音 ogg 事件表 + 颜文字气泡 | [规格书 §9/§11.1 EnableEmoji] |
 | 固定 36 格背包（好感扩容） | **8 种背包类型**（empty/small/middle/big/crafting/ender/furnace/tank），换装制，恒 36 物理格 + 类型决定 GUI 可用格数 | [规格书 §7.1] |
 | 无日程 | 三班制 DAY/NIGHT/ALL + 家模式三锚点（work/idle/sleep） | [规格书 §1.4] |
@@ -301,23 +301,9 @@ TLM 通用骨架 97 动作 [规格书 §8.1]，完整键名清单以 `D:\work\_t
 
 补播纪律（v1 实测 api-facts 17.9，适配器内部实现）：单次 `animate` 播完停最后一帧不自续 → LOOP 类（idle/walk/run/sit/sleep）由 BetterModelPlatform 内部计时补播；起立/姿态切换必须"归位动画顶掉"而非只 `stopAnimation`。
 
-### 0.10 v1 → v2 迁移映射（MigrationFromV1，P1 实现）
+### 0.10 v1 兼容（R2 整体废止，2026-11-18 服主终裁）
 
-| v1 数据 | v2 映射 |
-|---|---|
-| `maids.affection` 0..100 | 分段线性保档：`<20 → a*64/20`；`20..39 → 64+(a-20)*128/20`；`40..59 → 192+(a-40)*96/20`；`60..79 → 192+(a-40)*192/20` 上限 383；`80..100 → 384`。结果 clamp 0..384 |
-| `mode` | FOLLOW→`task_id=idle`；COMBAT→`attack`；FARM→`farm`；RANCH→`feed_animal`；IDLE→`idle` |
-| `alive=0`（铃铛态） | `state=FILM`，生成胶片物品规则见 P9（迁移时**不**补发实体墓碑，胶片直接塞主人背包，满则掉落原 home） |
-| `stored=1`（魂符收纳） | `state=STORED`（魂符三态机制 P1 移植，PDC 键沿用） |
-| `maids.mode='FOLLOW'` 且 sitting | 照搬 sitting |
-| 玩家背包中的 v1 铃铛（PDC `catmaid:maid_id`） | 迁移时替换为胶片（P9 物品规格） |
-| `owner_title`、`dialogue.yml`、喂食冷却 Map | 丢弃（0.2 裁决） |
-| `player_prefs` | 保留 hide_models；新增 quota（=该玩家当前 FILM+ALIVE+STORED 女仆数）、power=0、claimed_packs 空数组 |
-| `maid_items`（v1 slot 0-5 装备 + 6-35 存储） | 槽号原位平移（v2 背包区 6..41，多出的 36..41 留空） |
-| 命令习惯 | `/catmaid` → `/tlm`（切换公告，不做别名——v1 P10-10.1 命名空间教训） |
-| v1 玩家存量女仆的 model_id | 按 0.13 分层归类：不在 base 清单 → extended，未 claim 期间对其本人也隐藏并给出下载提示 |
-
-迁移器为一次性命令：`/tlm admin migrate-v1`（检测 `plugins/TouhouLittleMaid/tlm.db` 是否存在 v1 表结构 → 逐表转换写入 v2 表 → **备份 v1 库文件**为 `catmaid-v1-backup.db` → 控制台输出转换报告）。幂等：v2 表非空时拒绝执行。
+**不做对 v1（CatMaid 旧插件）的任何兼容**：原迁移映射表、`/tlm admin migrate-v1` 命令、`MigrationFromV1`、v1 铃铛→胶片转换、v1 凭证 PDC 互认（api-facts 24.3-6"与 v1 互认"口径作废）全部删除，P1 不再包含迁移器。v1 生产数据**不迁移**——老玩家从零开始（服主知情决策：全新项目零历史包袱，也是数据键改用 `touhoulittlemaid:` 前缀的前提）。v1 仓库仅保留"移植参考源"角色（"照抄 v1"组件的姿势出处，见 agent.md 头部）。魂符三态召唤仍为 v2 自身获取机制（P1 落地，PDC 键用新前缀）。
 
 ### 0.11 编码执行规则（对执行模型的硬性要求）
 
@@ -384,26 +370,30 @@ model-packs:
 3. 隐藏实施：复用 v1 P11 基建（api-facts 第 28 节全套：骨 display 逐个 hideEntity + 名牌 + 底层实体 + 四挂点 + 低频 sweep 对账）；新增两个挂点：**claim/unclaim 变更时全量 applyAll/restoreAll**、**换模型时按新模型层重判**。
 4. 与 `/tlm hide` 的关系：hide（玩家级一键隐藏全部女仆）优先级最高、独立开关；两者同走 MaidVisibilityManager 的施加点，效果叠加（任一触发即隐藏）。
 5. 模型选择 GUI：图标按层染色/lore 标注（基础/扩展），选扩展模型时 lore 警示"未安装扩展包的玩家将看不到她"；`/tlm pack claim` 前允许选（她自己的观感取决于自己 claim 了吗）。
-6. **迁移映射**：v1 玩家存量模型若不在 base 清单 → 自动归 extended，首次进服提示（"你女仆的模型属于扩展包，下载地址…"），未 claim 期间她自己的女仆对自己也隐藏（口径统一，不例外——提示文案必须写清楚）。
+6. ~~迁移映射：v1 玩家存量模型归层~~（R2 删除：v1 兼容整体废止，见 0.10——无存量 v1 模型需要归层；新插件选模型即写新档，无此场景）。
 
 
 ---
 
 ## Phase 0 — 架构骨架与平台适配 Spike（不写业务代码）
 
-**目标**：新包骨架编译通过；三个平台接口 + 最小适配器在测试服跑通"创建 NPC → 挂模型 → 播动画 → 导航一步 → 销毁"全链路；**把 0.11 列出的 [待验] 项全部验证并写入 api-facts.md 第 29 节**。本阶段产物是后续一切阶段的地基。
+**目标**：新包骨架编译通过；三个平台接口 + 最小适配器在测试服跑通"创建 NPC → 挂模型 → 播动画 → 导航一步 → 销毁"全链路（触发入口 = `/tlm spike` 探针命令，仅控制台日志，R1 修订）；**把 0.11 列出的 [待验] 项全部验证并写入 api-facts.md 第 29 节**。本阶段产物是后续一切阶段的地基。
 
 ### 新增文件
 
 | 文件 | 职责 |
 |---|---|
 | `TouhouLittleMaidPlugin.java` | onEnable：依赖自检（三插件缺一禁用自身）→ Database → 平台装配 → 注册表空装载。tick 管线先空转 |
+| `core/domain/FavorTier.java` | R1：好感档位 enum，**0.7 数值完整实现随 P0 落地**——平台接口 `applyAttributes` 签名依赖该类型，无法等到 P1 |
+| `core/domain/MaidInventory.java` | R1：`applyEquipment` 签名依赖类型。P0 **仅 82 槽常量**（0.8 口径：SIZE=82、槽区段常量）；槽位物品存储与实体装备写回留 P1 |
 | `platform/MaidEntityPlatform.java` | 接口（签名见下） |
 | `platform/MaidModelPlatform.java` | 接口 |
 | `platform/ContentPlatform.java` | 接口 |
-| `platform/impl/CitizensEntityPlatform.java` | 最小实现：spawn/despawn/navigate/cancel/teleport/applyAttributes |
+| `platform/impl/CitizensEntityPlatform.java` | 最小实现：spawn/despawn/navigate/cancel/teleport/applyAttributes（applyEquipment 为 P0 空实现占位，P1 实装） |
 | `platform/impl/BetterModelPlatform.java` | 最小实现：applyModel/animate（含补播计时）——反射姿势**照抄 v1 `ModelApplier`**（api-facts 3.1/17.5），包名按方法名查找 |
 | `platform/impl/CraftEngineContent.java` | 最小实现：customItem/customItemId/playSoundAt——反射姿势照抄 v1 `util/MaidItems`（api-facts 24.3-5/6） |
+| `platform/impl/MaidTraitV2.java` | R1：纯数据 Trait（trait 名 `tlm`，存 maidId）。**必须 `extends net.citizensnpcs.api.trait.Trait`，0.4 环纪律禁止环2 import Citizens → 只能落 platform/impl**；P0 的 spawn 链（getOrAddTrait）需要它参与签名 |
+| `command/TlmCommand.java` | R1/R2：P0 验证探针 `/tlm spike`，子命令 13 个：`summon/anim/stopanim/sit/stand/nav/pos/attack/sound/seat/bone/destroy/check`（R2 扩至 V0 验收所需全集：sound→V0-1、bone→V0-2、seat→V0-3、attack→V0-4、sit/stand/stopanim→动画观察、pos→导航位移观察）——把平台接口串成验收链，输出**只走控制台日志**（不硬编码玩家可见文案，messages.yml P1 才接入）；P1 正式命令树落地时整体替换 |
 | `tools/check_rings.py` | 三环纪律扫描（0.4 规则，200 行内，违规包名列表） |
 
 ### 平台接口签名（固定）
@@ -422,8 +412,8 @@ public interface MaidEntityPlatform {
     void cancelNavigation(int npcId);
     boolean isNavigating(int npcId);
     void teleport(int npcId, Location loc);
-    void applyAttributes(FavorTier tier, boolean struckByLightning); // MAX_HEALTH/ATTACK_DAMAGE baseValue 重设 + setHealth 同步（v1 教训 api-facts 21.3-4：每条生成路径都要调）
-    void applyEquipment(MaidInventory inv);              // 0-5 槽写实体 equipment
+    void applyAttributes(int npcId, FavorTier tier, boolean struckByLightning); // MAX_HEALTH/ATTACK_DAMAGE baseValue 重设 + setHealth 同步（v1 教训 api-facts 21.3-4：每条生成路径都要调）。R1：首参补 npcId——无它无法定位实体（0.7 原签名笔误，api-facts 29.2-1）
+    void applyEquipment(int npcId, MaidInventory inv);  // 0-5 槽写实体 equipment。R1：同上补 npcId；P0 仅签名 + MaidInventory 槽位常量，实体装备写回 P1 实装
     void hideFrom(Player p, UUID entityUuid);            // Player#hideEntity
     void showTo(Player p, UUID entityUuid);
     void attack(int npcId, Entity target);               // LivingEntity#attack
@@ -453,7 +443,7 @@ public interface ContentPlatform {
 
 | # | 项 | 验证方法 | 失败预案 |
 |---|---|---|---|
-| V0-1 | CE 资源包内自定义 `sounds.json` + ogg，服务端 `playSound("catmaid:maid.hurt")` 能否播放（映射报告 §7 [推断]） | 测试服 CE 资源包放 1 个 ogg + sounds.json，重发包后 RCON 派测试命令 | 不可行则语音改用原版 Sound 近似映射表（P10 兜底方案 B） |
+| V0-1 | CE 资源包内自定义 `sounds.json` + ogg，服务端 `playSound("touhoulittlemaid:maid.hurt")` 能否播放（映射报告 §7 [推断]） | 测试服 CE 资源包放 1 个 ogg + sounds.json，重发包后 RCON 派测试命令 | 不可行则语音改用原版 Sound 近似映射表（P10 兜底方案 B） |
 | V0-2 | BM `RenderedBone#itemStack(Predicate, TransformedItemStack)` 在**带 display 的骨骼**上渲染坐标是否随骨骼动画位姿（规格书 §7.2 的核心） | 直接用 winefox（自带 `RightHandLocator` 挂点骨，2026-11-17 实测确认）挂钻石剑 → 走动观察；骨无 display 则给该骨加 0.01 隐形 cube 再试 | 坐标不动/语义不符 → 手持可见降级为 P4 方案 B（独立 ItemDisplay + 骨骼 worldPosition 轮询，v1 HandItemDisplays 改造版） |
 | V0-3 | `Interaction` 实体 `setResponsive(true)` 右键触发 `PlayerInteractEntityEvent`，可 `addPassenger` 叠坐（映射报告 §3.1） | 测试命令生成座椅，真人右键 | 不行则座椅用 BlockDisplay + 隐形 ArmorStand 骑乘位 |
 | V0-4 | 玩家型 NPC 的攻击强度读取：`HumanEntity#getAttackCooldown()`（映射报告 §10 修正了 v1 伪代码的 `getCooledAttackStrength`）返回值语义 | 测试 NPC 连续 attack，打印冷却值曲线 | 语义不符 → 沿用 v1 的 0.9 闸门策略但记录差异 |
@@ -465,27 +455,26 @@ public interface ContentPlatform {
 
 - [ ] `gradlew shadowJar` 通过；Paper 26.2 启动 0 ERROR
 - [ ] `tools/check_rings.py` 扫描通过（环1/环2 无平台类 import）
-- [ ] 命令生成 NPC → 模型渲染 → idle 动画补播可见 → 导航走 3 格 → 销毁，全链无异常
+- [ ] `/tlm spike summon <model>` 生成 NPC → 模型渲染 → idle 动画补播可见 → `/tlm spike nav <npcId> 3` 导航 3 格 → `/tlm spike destroy <npcId>` 销毁，全链无异常（探针仅控制台日志；复跑入口见 api-facts 29.3）
 - [ ] V0-1..V0-6 全部有结论并写入 api-facts 第 29 节
 
 ---
 
-## Phase 1 — 领域核心、数据层与 v1 迁移
+## Phase 1 — 领域核心、数据层与魂符召唤（R2：v1 迁移已删除）
 
-**目标**：0.6/0.7/0.8 的全部对象落库可用；`/tlm admin migrate-v1` 把生产 v1 数据无损迁入 v2；魂符三态召唤移植。本阶段结束时 v2 可召唤/迁移/持久化，但行为只有待机。
+**目标**：0.6/0.7/0.8 的全部对象落库可用；魂符三态召唤落地（机制照抄 v1 姿势，PDC 键用 `touhoulittlemaid:` 新前缀——R2：v1 迁移链已删除）。本阶段结束时 v2 可召唤/持久化，但行为只有待机。
 
 ### 新增文件
 
 | 文件 | 职责 |
 |---|---|
-| `core/domain/**` | 0.7 全部类（Maid/MaidManager/MaidInventory/MaidStats/FavorabilityManager/FavorTier/state/schedule） |
+| `core/domain/**` | 0.7 全部类（Maid/MaidManager/MaidStats/FavorabilityManager/state/schedule）。R1：`FavorTier`、`MaidInventory` 已随 P0 落地（接口签名依赖）——`MaidInventory` 在本阶段补齐槽位物品存储与 `applyEquipment` 实体装备写回 |
 | `data/Database.java` | 0.6 建表；连接生命周期同 v1 |
 | `data/MaidRepository.java` | CRUD（maids 全字段 + maid_items 全量重写 + maid_stats + player_prefs 读写）；单线程 executor，照抄 v1 模式 |
-| `data/MigrationFromV1.java` | 0.10 映射全表；备份+报告+幂等拒绝 |
-| `util/MaidItems.java` v2 | 物品工厂/识别器：`soulTalisman()`（空）/ `initTalisman(player)` / `storedTalisman(maid)` / `film(maid)`（P9 前只做数据壳）/ `isXxx(stack)` 三件套。**内部一律先走 ContentPlatform CE 物品（`catmaid:talisman` 等，CE 物品定义由服主在 CE 侧维护，文档 `docs/craftengine物品定义.yml` 已有格式），CE 缺失回落原版材质+PDC 并告警**；识别只认 PDC 键 `catmaid:soul_talisman`/`catmaid:soul_init`/`catmaid:maid_id`（与 v1 互认，api-facts 24.3-6 口径不变） |
+| `util/MaidItems.java` v2 | 物品工厂/识别器：`soulTalisman()`（空）/ `initTalisman(player)` / `storedTalisman(maid)` / `film(maid)`（P9 前只做数据壳）/ `isXxx(stack)` 三件套。**内部一律先走 ContentPlatform CE 物品（`touhoulittlemaid:talisman` 等，CE 物品定义由服主在 CE 侧维护，文档 `docs/craftengine物品定义.yml` 已有格式），CE 缺失回落原版材质+PDC 并告警**；识别只认 PDC 键 `touhoulittlemaid:soul_talisman`/`touhoulittlemaid:soul_init`/`touhoulittlemaid:maid_id`（R2：不再与 v1 互认，v1 兼容整体废止） |
 | `listener/TalismanListener.java` | 魂符三态——**逻辑照抄 v1（api-facts 25.3/25.4）**，仅把物品构造改走 MaidItems v2。三态表与落点校验不变（只认顶面+两格碰撞+右键空气放脚下这条 v1 有意差异保留） |
-| `command/tlmCommand.java` 骨架 | `/tlm` 帮助 + `admin summon/remove/list/migrate-v1/reload`（收参/权限/Tab 补全框架沿用 v1 P8/P10 成品） |
-| `maid/MaidTraitV2.java` | 纯数据标记（maidId），照抄 v1 结论：`run()` 永不被调、装备写回由 Manager.attach 补做（api-facts 17.2/17.11） |
+| `command/tlmCommand.java` 骨架 | `/tlm` 帮助 + `admin summon/remove/list/reload`（收参/权限/Tab 补全框架沿用 v1 P8/P10 成品；R2：`migrate-v1` 子命令删除）。R1：落地时**整体替换 P0 的 `/tlm spike` 探针**（探针使命结束即删，不做别名保留） |
+| `platform/impl/MaidTraitV2.java` | R1 修正落点（原 P1 表格误写 `maid/`）：必须 `extends net.citizensnpcs.api.trait.Trait`，0.4 环纪律禁止环2 import Citizens → **只能落 platform/impl，已随 P0 spawn 链落地**。纯数据标记（maidId，trait 名 `tlm`），照抄 v1 结论：`run()` 永不被调、装备写回由 Manager.attach 补做（api-facts 17.2/17.11）。**禁止新建 `maid/` 顶层包** |
 
 ### 关键伪代码
 
@@ -497,7 +486,7 @@ public Maid summon(Player owner, String modelId, Location loc) {
     //    quota 用满了但该玩家存在 FILM 态女仆 → 允许走复活链（P9），召唤口拒绝
     // 2. new Maid（favorability=0（TLM 初始值）、task_id=idle、state=ALIVE、schedule 默认 DAY 班）
     // 3. npcId = entityPlatform.spawn(...)；modelPlatform.applyModel(...)
-    // 4. entityPlatform.applyAttributes(FavorTier.LV0, false)   // 20 血/2 攻
+    // 4. entityPlatform.applyAttributes(npcId, FavorTier.LV0, false)   // 20 血/2 攻（R1：首参 npcId）
     // 5. repository.insert；特效：粒子 HEART + 音效 ENTITY_CAT_AMBIENT + 心形粒子广播（规格书 §2.1）
 }
 // 随机模型：ModelRegistry 从 ContentPlatform/BetterModel 模型清单随机（服务端已加载模型均匀随机，
@@ -519,10 +508,9 @@ models: [ hakurei_reimu, kirisame_marisa, konpaku_youmu, izayoi_sakuya, flandre_
 
 ### 验收清单
 
-- [ ] migrate-v1 在生产库副本上跑通：好感度映射抽查（0/20/40/60/80/100 → 0/64/192/288/384/384 档位正确）、物品逐槽平移、铃铛态→FILM、v1 铃铛物品→胶片
 - [ ] `/tlm soul` 领魂符 → 右键顶面召唤 → 手中变空魂符（三态不变）；重启后女仆/好感/任务/背包全恢复
 - [ ] 魂符收纳→重启→释放全链保留（v1 行为回归）
-- [ ] quota：召唤满 2 只后第三次拒绝；送走（`/tlm release`，沿用 v1 P10 语义）不释放 quota 但 release 允许腾"非占用"说明——**注意**：release 删除 DB 记录时 quota **不减**（TLM 口径 [规格书 §12.5]），`/tlm admin quota <玩家> <数值>` 提供管理员修正
+- [ ] quota：召唤满 2 只后第三次拒绝；送走（`/tlm release`，0.3 口径）不释放 quota 但 release 允许腾"非占用"说明——**注意**：release 删除 DB 记录时 quota **不减**（TLM 口径 [规格书 §12.5]），`/tlm admin quota <玩家> <数值>` 提供管理员修正
 
 ---
 
@@ -615,7 +603,7 @@ public final class BehaviorPipeline {   // core/behavior，环2
 
 **MaidBedTask（REST/SLEEP 活动）** [规格书 §3.4/§1.5]：
 ```
-进入 SLEEP 活动且 homeMode：在 sleepPos 半径内找最近 catmaid:maid_bed（ContentPlatform.isCustomBlock）
+进入 SLEEP 活动且 homeMode：在 sleepPos 半径内找最近 touhoulittlemaid:maid_bed（ContentPlatform.isCustomBlock）
   → navigateTo(床旁 ≤2 格)；到达 → animate("sleep") + setHealth(max)（睡觉回满血）
   + FavorabilityManager.add(SLEEP +2, 冷却 24000)；活动切换/被打 → 起床（归位动画顶掉）
 找无床（锚点没配）→ 站在 sleepPos 附近 idle
@@ -641,7 +629,7 @@ public final class BehaviorPipeline {   // core/behavior，环2
 | `core/behavior/common/*.java` | Pickup/Beg/RandomLook/StealEdible(占位) 四行为 + 注册表 |
 | `core/domain/schedule/ScheduleData.java` 等 | 0.7 签名落地 |
 | `listener/VehicleListener.java` | 载具同乘 + EntityDismountEvent |
-| `gui` Settings 二级 GUI 接线 | 班次切换（DAY/NIGHT/ALL）、家模式开关、拾取类型、锚点记录入口（配合 P3 物品"河童罗盘"：CE 物品 `catmaid:kappa_compass`，右键女仆写入当前脚下三锚点，同维度 ≤1024 校验 [规格书 §1.4/§5.2]；CE 缺失回落原版 `RECOVERY_COMPASS`+PDC） |
+| `gui` Settings 二级 GUI 接线 | 班次切换（DAY/NIGHT/ALL）、家模式开关、拾取类型、锚点记录入口（配合 P3 物品"河童罗盘"：CE 物品 `touhoulittlemaid:kappa_compass`，右键女仆写入当前脚下三锚点，同维度 ≤1024 校验 [规格书 §1.4/§5.2]；CE 缺失回落原版 `RECOVERY_COMPASS`+PDC） |
 
 ### 配置新增
 
@@ -679,7 +667,7 @@ public enum HandSlot { MAIN, OFF }
 public enum HandAct { HOLD, USE, SWING }
 // 分类解析（三级匹配，[规格书 §8.1]）：物品ID($) > 物品标签(Tag) > 内部类别(:)
 //   内部类别表（写死 + config 可扩展）：
-//   sword/axe/pickaxe/shovel/hoe → 各类工具；shield；bow；crossbow；gohei(CE id catmaid:gohei)；
+//   sword/axe/pickaxe/shovel/hoe → 各类工具；shield；bow；crossbow；gohei(CE id touhoulittlemaid:gohei)；
 //   eat(有 FoodComponent)；drink(POTION)；fishing(FISHING_ROD)；empty(空手)
 // 产出动画名规则（0.9 真实约定，2026-11-17 实测）：
 //   MAIN+HOLD → "hold_mainhand:<category>"    OFF+HOLD → "hold_offhand:<category>"
@@ -793,7 +781,7 @@ dist > 触及距离（(2.0+tier.reachBonus)²）→ navigateToEntity(speed 1.2)
 
 **crossbow_attack（弩）**：射程 64；装填期（30t）持弩姿势；射出速度 3.5 固定；其余同弓（烟花分支不做，差异声明）。
 
-**danmaku_attack（弹幕）**：主手必须持御币（CE 物品 `catmaid:gohei`，回落原版 `NETHER_STAR`+PDC）；无弹药；每次发射扣御币 1 耐久（耐久 1200）；冷却 `config.combat.danmaku-interval-ticks: 40`（TLM 属性 maid_shoot_cooldown=2.0 秒 [待验单位]）；伤害 = `tier.attackDamage × factor`，factor = 敌数 1 → 1.0 / ≤8 → 1.2 / >8 → 1.5 [规格书 §4.2 近似，系数单位待读反编译核对]；弹形：敌 1 → 单发；≤8 → 8 弹 60° 扇面；>8 → 32 弹 120° 扇面；多重射击附魔 → 3 连发。**弹幕实体实现**：`spawnArrow`（速度 1.5）+ `END_ROD`/`SPELL_WITCH` 粒子尾迹任务（每 2t 沿弹道 spawnParticle，2t 后移除箭）+ `setPickupStatus(DISALLOWED)`；永不命中玩家/同主宠物/忽略名单（`ProjectileHitEvent` 里命中实体在这些类里取消伤害）。弹幕专属音效走 P10 语音表。
+**danmaku_attack（弹幕）**：主手必须持御币（CE 物品 `touhoulittlemaid:gohei`，回落原版 `NETHER_STAR`+PDC）；无弹药；每次发射扣御币 1 耐久（耐久 1200）；冷却 `config.combat.danmaku-interval-ticks: 40`（TLM 属性 maid_shoot_cooldown=2.0 秒 [待验单位]）；伤害 = `tier.attackDamage × factor`，factor = 敌数 1 → 1.0 / ≤8 → 1.2 / >8 → 1.5 [规格书 §4.2 近似，系数单位待读反编译核对]；弹形：敌 1 → 单发；≤8 → 8 弹 60° 扇面；>8 → 32 弹 120° 扇面；多重射击附魔 → 3 连发。**弹幕实体实现**：`spawnArrow`（速度 1.5）+ `END_ROD`/`SPELL_WITCH` 粒子尾迹任务（每 2t 沿弹道 spawnParticle，2t 后移除箭）+ `setPickupStatus(DISALLOWED)`；永不命中玩家/同主宠物/忽略名单（`ProjectileHitEvent` 里命中实体在这些类里取消伤害）。弹幕专属音效走 P10 语音表。
 
 **trident_attack（三叉戟）**：主手三叉戟；蓄力 ≥30t（持掷姿势动画）；投出 `setPickupStatus(DISALLOWED)` 且命中/落地后**不返还**（扣 1 耐久 [规格书 §4.2]）；冷却 = `config.combat.trident-interval-ticks: 400` [待验：TLM 属性 maid_trident_cooldown=20.0 的单位，读反编译定]；射程 48；伤害走原版三叉戟（spawnArrow 不适用 → `world.spawn(Trident)`? 不可 → 用 Arrow 仿制 + 原版三叉戟伤害值 8×tier 系数；**[待验 V5-1：Paper 能否 spawn 三叉戟投射物（EntityType.TRIDENT）]**，不行则降级为箭）。
 
@@ -833,7 +821,7 @@ combat: { radius: 12, lose-dist: 20, sweep-enabled: true, danmaku-interval-ticks
 | furnace | 18 | GUI 内熔炉 3 格（燃料/输入/输出）；**BurnTime/CookTime 持久化进 extra JSON，女仆在线时由管线每 20t 推进烧炼**（[规格书 §7.1] [推断 FurnaceBackpackData 同构]） |
 | tank | — | **不做**（Bukkit 流体建模成本高，未来目标清单，差异声明） |
 
-背包物品：CE 物品 `catmaid:backpack_small/middle/big/crafting/ender/furnace`（回落原版 `BUNDLE`? 不——回落 `CHEST/MINECART` 材质系+PDC，样式丑但功能一致，告警提示服主补 CE 定义）。
+背包物品：CE 物品 `touhoulittlemaid:backpack_small/middle/big/crafting/ender/furnace`（回落原版 `BUNDLE`? 不——回落 `CHEST/MINECART` 材质系+PDC，样式丑但功能一致，告警提示服主补 CE 定义）。
 
 ### 任务规格（BaseTask 辅助 + 数值表；未注明处读 [规格书 §3.2] 对应行）
 
@@ -883,7 +871,7 @@ combat: { radius: 12, lose-dist: 20, sweep-enabled: true, danmaku-interval-ticks
 偷吃（StealEdibleBehavior，IDLE/WORK）：范围内 CAKE 方块（TLM 要求零食柜上——**我们放宽为任意
   放置的蛋糕**，差异声明）→ 走到跟前咬一口：Cake blockdata `bites+1`，咬满 7 → AIR
   → 好感 STEAL +1/口，冷却 3600
-野餐（IDLE 活动）：找 CE 方块 `catmaid:picnic_mat`（4 座 Interaction，V0-3 实现；占座=骑乘实体存在）
+野餐（IDLE 活动）：找 CE 方块 `touhoulittlemaid:picnic_mat`（4 座 Interaction，V0-3 实现；占座=骑乘实体存在）
   → 空位坐下 → 吃垫上的食物（座位 1 格内的食物 Item 实体 / mat 方块上表面物品）
   → 好感 PICNIC_MEAL `total/15` 向下取整 + 余数概率进位（冷却 1200）+ PICNIC_SEAT +1（冷却 24000）
 黑名单三组（config）：work/heal/picnic 默认 [PUFFERFISH, POISONOUS_POTATO, ROTTEN_FLESH,
@@ -922,10 +910,10 @@ public interface Bauble {   // bauble 包，环2
 }
 // BaubleRegistry：id→Bauble；饰品 GUI（主菜单 slot 13）：54 格 = 30 饰品位（tier.baubleSlots 之前的
 // 可用，其余灰玻璃"提升好感解锁"）+ 说明书；拖拽/点击规则照抄 v1 装备 GUI 语义
-// 识别：ContentPlatform.customItemId(stack) 命中 CE id，或原版 material+PDC `catmaid:bauble`
+// 识别：ContentPlatform.customItemId(stack) 命中 CE id，或原版 material+PDC `touhoulittlemaid:bauble`
 ```
 
-内置饰品（全部先走 CE 物品定义 `catmaid:<id>`，缺失回落原版材质+PDC 并告警；耐久用 PDC 计数，**不可修补**）：
+内置饰品（全部先走 CE 物品定义 `touhoulittlemaid:<id>`，缺失回落原版材质+PDC 并告警；耐久用 PDC 计数，**不可修补**）：
 
 | id | 效果 | 耐久 |
 |---|---|---|
@@ -973,10 +961,10 @@ MaidDamageListener（沿用 v1 双保险：EntityDamageEvent 预判兜底 health
 
 ```
 生成位置：死亡坐标（y 钳制世界底+5 ~ 世界顶）
-结构 = 1 个 BlockDisplay（CE 方块 catmaid:tombstone 的方块模型；缺失回落
+结构 = 1 个 BlockDisplay（CE 方块 touhoulittlemaid:tombstone 的方块模型；缺失回落
   BlockDisplay(Material.SOUL_SAND) + 说明——观感降级但不阻塞）+ 1 个 Interaction
   （setInteractionWidth(0.8) / Height(1.2) / setResponsive(true)，V0-3），
-  两个实体均 setInvulnerable(true)，Interaction 挂 PDC catmaid:tombstone
+  两个实体均 setInvulnerable(true)，Interaction 挂 PDC touhoulittlemaid:tombstone
 收纳：maid_items 全槽（0..81 非空）+ 背包本体物品 + 胶片 → 全部序列化进 tombstones.items BLOB
 台账：tombstones 表（0.6）；onEnable 恢复：表存在而实体丢失 → 原地重建（v1 幽灵身体教训 18.3-6 的反向兜底）
 交互：主人右击 Interaction → 逐格还物（塞主人背包，满则掉落原地）；还完自动消失（两实体+表行）
@@ -987,8 +975,8 @@ MaidDamageListener（沿用 v1 双保险：EntityDamageEvent 预判兜底 health
 ### 胶片（FilmManager，[规格书 §12.3]）
 
 ```
-film(maid) = CE 物品 catmaid:film（缺失回落 Material.HEART_OF_THE_SEA + PDC）
-  PDC catmaid:maid_id = maid.id；displayName "<name>的胶片"；不堆叠
+film(maid) = CE 物品 touhoulittlemaid:film（缺失回落 Material.HEART_OF_THE_SEA + PDC）
+  PDC touhoulittlemaid:maid_id = maid.id；displayName "<name>的胶片"；不堆叠
 生成后优先塞主人背包，满 → 掉墓碑顶（Item 实体 setInvulnerable+setGlowing，v1 18.3-3 教训）
 胶片承载 = maids 行本身（state=FILM）——**胶片只是钥匙，数据在库**（v1 P10.4 绑定原则沿用：
 DB 是事实来源、凭证可补发；补发口 = /tlm film [女仆名]，铃铛态同款）
@@ -997,7 +985,7 @@ DB 是事实来源、凭证可补发；补发口 = /tlm film [女仆名]，铃�
 ### 神社复活（ShrineManager，[规格书 §12.4-1]）
 
 ```
-神社方块 = CE 方块 catmaid:shrine（缺失回落 config.death.shrine-fallback-block: ENCHANTING_TABLE，
+神社方块 = CE 方块 touhoulittlemaid:shrine（缺失回落 config.death.shrine-fallback-block: ENCHANTING_TABLE，
   以 Material 判定——回落模式下任何该方块都算神社）
 手持胶片右击神社方块（PlayerInteractEvent RIGHT_CLICK_BLOCK）：
   1. 使用者 == owner 校验
@@ -1014,7 +1002,7 @@ DB 是事实来源、凭证可补发；补发口 = /tlm film [女仆名]，铃�
 - [ ] 墓碑右击逐格还物（含大背包物品），还完消失；非主人无效；重启后墓碑仍在
 - [ ] 胶片右击神社：血量 >50% 时被扣到 0.25（半心图标可见）、女仆在神社上方复活、装备从墓碑取回后完整
 - [ ] 满血玩家直接右击神社 → 拒绝提示（血量不足）
-- [ ] v1 迁移复验：v1 铃铛态女仆 → 胶片 → 神社复活闭环（P1 迁移的收口测试）
+（R2 删除：v1 迁移复验项——v1 兼容整体废止，见 0.10）
 
 ---
 
@@ -1032,10 +1020,10 @@ DB 是事实来源、凭证可补发；补发口 = /tlm film [女仆名]，铃�
 | other/ | credit | 不接线（占位） |
 
 ```
-播放：ContentPlatform.playSoundAt(女仆实体, "catmaid:maid.<pack>.<短名><rand>",
+播放：ContentPlatform.playSoundAt(女仆实体, "touhoulittlemaid:maid.<pack>.<短名><rand>",
       volume 1.0, pitch 1.0) —— 16 格内玩家 [规格书 §9.2]；
 资源键规则：每个语音包构建时由 tools/voice_pack_builder.py 从 TLM jar 语音资产生成
-  sounds.json：key = catmaid:maid.<pack_id>.<短名><n>（n=1..实际数量），播放端随机取 n
+  sounds.json：key = touhoulittlemaid:maid.<pack_id>.<短名><n>（n=1..实际数量），播放端随机取 n
 继承复用（[规格书 §9.1]，缺键回落）：range_attack/danmaku_attack → attack；
   farm/feed/shears/milk/torch/feed_animal/extinguishing/snow → idle；hurt_fire → hurt
 初始语音包：召唤时 75% "peco" / 25% "touhou" 随机 [规格书 §9.2]；GUI（P2 的语音选择）可换
@@ -1081,7 +1069,7 @@ meal: { return-containers: [BOWL, GLASS_BOTTLE], blacklist: { work: [...], heal:
 ```
 存储：player_prefs.power REAL；上限 5.0、初始 0 [规格书 §6.1]
 获取（本期实装渠道）：①钓鱼 10%（PlayerFishEvent State.CAUGHT_FISH）→ 掉落 1 个 P 点实体
-  （发光的 Item 实体：CE 物品 catmaid:power_point，缺失回落 AMETHYST_SHARD+PDC；setCanPlayerPickup(false)
+  （发光的 Item 实体：CE 物品 touhoulittlemaid:power_point，缺失回落 AMETHYST_SHARD+PDC；setCanPlayerPickup(false)
   + 16 格内玩家右击拾取 +0.16 [规格书 §6.3 妖精值]——实体右击拾取而非原版吸附，防误拾+可做特效）
   ②命令 /tlm admin power <玩家> <数值>
   ③战利品箱/妖精 → 未来目标（差异声明）
@@ -1116,7 +1104,7 @@ P 点 HUD → 不可能（客户端）；御币右击空气 = actionbar 显示�
   spawn_lightning → 祭坛上空召唤 LightningBolt → 5 格内自己的女仆 struckByLightning=true
     （血量上限 +20 永久，applyAttributes 重算 [规格书 §1.2]）+ 引雷特效
   背包/御币 → 直接给出 CE 物品
-御币 = 弹幕武器兼祭坛激活器（CE catmaid:gohei；P5 已实装战斗侧）
+御币 = 弹幕武器兼祭坛激活器（CE touhoulittlemaid:gohei；P5 已实装战斗侧）
 ```
 
 ### 验收清单
@@ -1131,7 +1119,7 @@ P 点 HUD → 不可能（客户端）；御币右击空气 = actionbar 显示�
 
 ## Phase 12 — 女仆包开放格式与切换收尾
 
-**目标**：第三方"女仆包"目录格式（TLM tlm_custom_pack 的对应物，差异化机会）；v1 正式下线与全链路收口。
+**目标**：第三方"女仆包"目录格式（TLM tlm_custom_pack 的对应物，差异化机会）；v1 参考源归档与全链路收口（R2：v1 迁移链已删除，v1 仅剩归档动作）。
 
 ### 女仆包格式（PackLoader/PackValidator；[规格书 §11.2] 的 bbmodel 化）
 
@@ -1150,17 +1138,17 @@ plugins/TouhouLittleMaid/packs/<pack_id>/
 卸载：反向删除 + models 列表移除（正被引用的模型拒绝卸载）
 ```
 
-### v1 下线与收口（本阶段完成，此后不再允许带未验项收口）
+### v1 归档与收口（本阶段完成，此后不再允许带未验项收口；R2：v1 迁移链已删除）
 
-1. 生产服：停 v1 jar → 部署 v2 → `/tlm admin migrate-v1` → 全量回归（下条清单）→ `legacy-src/` 打 tag 归档。
+1. 生产服：停 v1 jar → 部署 v2 → 全量回归（下条清单）→ v1 仓库（`d:\work\女仆插件`）打 tag 归档（R2：无迁移步骤——v1 数据不迁移，老玩家从零开始，见 0.10）。
 2. `docs/migration-runbook.md`：0.4 的迁移 runbook 落文档（paper-api 版本步骤 + 平台 jar 重核 + 验收抽取）。
-3. `agent.md` 修订提交：按 0.2 约束变更报告同步（CE 硬依赖、三环纪律、平台独占、台词/喂食删除）。
+3. `agent.md` 修订提交：按 0.2 约束变更报告同步（CE 硬依赖、三环纪律、平台独占、台词/喂食删除；R2 追加：数据键 `touhoulittlemaid:` 前缀、CE 目录修改须说明义务——AGENTS.md 已同步修订）。
 4. `blueprint.md`（v1）头部加"已被 blueprint-v2.md 取代"指向注记。
 
 ### 最终验收（全链路，服主双人实机）
 
 - [ ] 新玩家旅程：魂符召唤 → 三餐涨好感 → 升 LV1 血条跳变 → 抽屉切任务干活 → 手持可见 → 死亡 → 墓碑还物 → 神社复活 → 祭坛召唤第二只
-- [ ] 迁移玩家旅程：v1 存档（好感 65 → LV2 192 档）→ 行为/背包/饰品全正常
+（R2 删除：迁移玩家旅程验收项——v1 兼容整体废止，见 0.10）
 - [ ] 60 只女仆同服 TPS ≥ 19.5（错峰 + 行为扫描节流全开）
 - [ ] 女仆包：第三方 bbmodel 按格式放入 → validate → install → 重启 → 渲染 + 动画 + 骨骼手持正常
 - [ ] 三环扫描脚本 CI 化（挂进 `gradlew check`，可选）
@@ -1228,7 +1216,7 @@ P0 ─→ P1 ─→ P2 ─→ P3 ─→ P4 ─→ P5 ─→ P6 ─→ P7 ─→ 
 
 ---
 
-*blueprint-v2.md · 2026-11-17 · 基于 docs/tlm-behavior-spec.md 与 docs/forge-paper-mapping-report.md 设计；实施期间所有 API 事实修订继续追加到 docs/api-facts.md。*
+*blueprint-v2.md · 2026-11-17 · R1 修订 2026-11-18（P0 冲突处理：接口签名补 npcId、MaidTraitV2 落点、FavorTier/MaidInventory 随 P0 落地、`/tlm spike` 探针）· R2 修订 2026-11-18（数据键命名空间改 `touhoulittlemaid:`、v1 兼容整体废止、探针集扩至 13 子命令、softdepend+运行时自检裁决、CE 目录修改须说明——均服主终裁；逐项记录见 `docs/blueprint-revisions.md`）· 基于 docs/tlm-behavior-spec.md 与 docs/forge-paper-mapping-report.md 设计；实施期间所有 API 事实修订继续追加到 docs/api-facts.md。*
 
 
 

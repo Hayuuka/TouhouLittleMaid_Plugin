@@ -20,7 +20,7 @@
 3. **禁止任何强制玩家侧安装**。扩展模型包是玩家自愿的可选降级路径（未装=对未声明玩家隐藏，blueprint 0.13），不是安装要求。
 4. 依赖插件固定三个：**Citizens2、BetterModel、CraftEngine**（全部硬依赖，全部免费）。禁止引入其他插件依赖或经济/权限类插件。
 5. 命令唯一入口 `/tlm`，**不设别名**（v1 P10-10.1 命名空间教训）。
-6. **数据键命名空间**：PDC 键与 CE 物品 id 沿用 `catmaid:` 前缀（blueprint 0.2 裁决 2——与插件名解耦的遗留数据命名空间，v1 凭证零改名兼容）。禁止发明 `touhoulittlemaid:` 数据键。
+6. **数据键命名空间**：PDC 键与 CE 物品 id 用 `touhoulittlemaid:` 前缀（blueprint 0.2 裁决 2 之 R2 修订——2026-11-18 服主终裁推翻原 `catmaid:` 方案：全新项目零 v1 兼容，见 blueprint 0.10）。禁止使用 `catmaid:` 遗留键。
 7. 资源包两层（blueprint 0.13）：基础包走 CE 合并统一下发；**扩展模型包不推送、不下载、不探测**——只认玩家 `/tlm pack claim` 自声明，隐藏判据宁可错杀不可放过（绝无紫黑块）。
 8. 零网络行为：插件不发起任何外部网络请求（LLM 对话仅留架构扩展点，实现前须二次裁决）。
 
@@ -64,9 +64,9 @@
 
 ## 6. 行为红线（绝对禁止）
 
-1. 禁止修改 `plugins/CraftEngine/`、`plugins/Citizens/` 内的任何文件；禁止修改 `plugins/BetterModel/` 除 `models/` 与 `config.yml` 的 `pack-type` 之外的内容。
+1. 修改 `plugins/CraftEngine/` 内的任何文件前，必须先说明修改了什么及修改目的（在阶段验收记录或 `docs/blueprint-revisions.md` 留痕；R2 服主裁决 2026-11-18 解除原禁令——V0 验收/资源放置需要）。禁止修改 `plugins/Citizens/` 内的任何文件；禁止修改 `plugins/BetterModel/` 除 `models/` 与 `config.yml` 的 `pack-type` 之外的内容。
 2. 禁止删除或绕过 blueprint 定义的验收步骤；禁止为"让测试通过"而注释掉检查逻辑。
-3. 禁止未经要求创建文档文件；仅允许：`docs/api-facts.md`（持续维护）、`docs/m-rounds.md`（M 轮启动时创建）、`docs/migration-runbook.md`（P12）与各阶段验收记录。
+3. 禁止未经要求创建文档文件；仅允许：`docs/api-facts.md`（持续维护）、`docs/blueprint-revisions.md`（蓝图修订台账，服主授权持续维护）、`docs/m-rounds.md`（M 轮启动时创建）、`docs/migration-runbook.md`（P12）与各阶段验收记录。
 4. 禁止大幅重写他人/前期阶段已验收代码。重构需在本阶段验收记录中说明动机与影响面。
 5. 禁止对扩展模型包做任何形式的网络探测或强制推送（第 1.7/1.8 条细则）。
 
