@@ -9,7 +9,9 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Zombie;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.List;
 import java.util.Locale;
@@ -47,6 +49,9 @@ public final class TlmCommand implements CommandExecutor, TabCompleter {
                 case "destroy" -> destroy(args);
                 case "bone" -> bone(args);
                 case "check" -> check(args);
+                case "pos" -> position(args);
+                case "attack" -> attack(args);
+                case "sound" -> sound(args);
                 default -> plugin.getLogger().info("[TLM] 未知 spike 子命令: " + args[1]);
             }
         } catch (IllegalArgumentException e) {
@@ -131,6 +136,56 @@ public final class TlmCommand implements CommandExecutor, TabCompleter {
                 + " attackCooldown=" + plugin.entityPlatform().attackCooldownProgress(npcId));
     }
 
+    private void position(String[] args) {
+        int npcId = requireInt(args, 2, "npcId");
+        if (plugin.entityPlatform().entity(npcId) == null) {
+            plugin.getLogger().warning("[TLM] spike: NPC " + npcId + " 没有实体");
+            return;
+        }
+        Location loc = plugin.entityPlatform().entity(npcId).getLocation();
+        plugin.getLogger().info("[TLM] spike: NPC " + npcId + " pos=" + loc.getX() + "," + loc.getY()
+                + "," + loc.getZ() + " navigating=" + plugin.entityPlatform().isNavigating(npcId));
+    }
+
+    /** V0-4：发起一次攻击后逐 tick 打印 getAttackCooldown，确认冷却曲线可用。 */
+    private void attack(String[] args) {
+        int npcId = requireInt(args, 2, "npcId");
+        var maid = plugin.entityPlatform().entity(npcId);
+        if (maid == null) {
+            plugin.getLogger().warning("[TLM] spike: NPC " + npcId + " 没有实体");
+            return;
+        }
+        var zombie = maid.getWorld().spawn(maid.getLocation().add(2, 0, 0), Zombie.class);
+        zombie.setAI(false);
+        zombie.setInvulnerable(false);
+        plugin.entityPlatform().attack(npcId, zombie);
+        plugin.getLogger().info("[TLM] spike: attack 已发起，开始采样 cooldown");
+        var counter = new int[] {0};
+        var task = new BukkitTask[] {null};
+        task[0] = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            double value = plugin.entityPlatform().attackCooldownProgress(npcId);
+            plugin.getLogger().info("[TLM] spike: cooldown sample=" + counter[0] + " value=" + value);
+            counter[0]++;
+            if (counter[0] >= 21) {
+                task[0].cancel();
+                zombie.remove();
+            }
+        }, 0L, 2L);
+    }
+
+    /** V0-1：以女仆实体为锚点播放自定义声音键。 */
+    private void sound(String[] args) {
+        int npcId = requireInt(args, 2, "npcId");
+        String key = requireArg(args, 3, "soundKey");
+        var anchor = plugin.entityPlatform().entity(npcId);
+        if (anchor == null) {
+            plugin.getLogger().warning("[TLM] spike: NPC " + npcId + " 没有实体");
+            return;
+        }
+        plugin.contentPlatform().playSoundAt(anchor, key, 1.0f, 1.0f);
+        plugin.getLogger().info("[TLM] spike: 已向附近玩家播放 " + key);
+    }
+
     private static int requireInt(String[] args, int index, String what) {
         String raw = requireArg(args, index, what);
         try {
@@ -153,7 +208,7 @@ public final class TlmCommand implements CommandExecutor, TabCompleter {
             return List.of("spike");
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("spike")) {
-            return List.of("summon", "anim", "nav", "destroy", "bone", "check");
+            return List.of("summon", "anim", "nav", "destroy", "bone", "check", "pos", "attack", "sound");
         }
         return List.of();
     }
