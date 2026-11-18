@@ -1,0 +1,19 @@
+name: TouhouLittleMaid
+version: '${version}'
+main: dev.touhoulittlemaid.TouhouLittleMaidPlugin
+api-version: '26.2'
+author: Hayuuka
+# 用 softdepend 而非 depend：depend 缺失时 Paper 会以英文报错拒绝加载，
+# 就无法满足"缺依赖时自禁用并打印中文原因"的要求。softdepend 同样保证加载顺序。
+softdepend: [Citizens, BetterModel, CraftEngine]
+commands:
+  tlm:
+    description: 车万女仆主命令
+    # 不设 aliases（v1 P10-10.1 命名空间教训）：唯一入口就是 /tlm。
+permissions:
+  tlm.use:
+    description: 普通玩家权限（召唤/管理自己的女仆）
+    default: true
+  tlm.admin:
+    description: 管理员权限
+    default: op
