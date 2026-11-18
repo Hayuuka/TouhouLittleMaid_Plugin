@@ -64,6 +64,7 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
                 case "bonetf" -> boneTransform(args);
                 case "sit" -> sit(args);
                 case "stand" -> stand(args);
+                case "stopanim" -> stopAnim(args);
                 default -> plugin.getLogger().info("[TLM] 未知 spike 子命令: " + args[1]);
             }
         } catch (IllegalArgumentException e) {
@@ -271,7 +272,14 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
         plugin.entityPlatform().cancelNavigation(npcId);
         maid.leaveVehicle();
         seat.addPassenger(maid);
-        plugin.getLogger().info("[TLM] spike: 女仆已坐上座椅，passengers=" + seat.getPassengers().size()
+        // 原版模型里 sit 动画才会把 FOX 骨架转成坐垫（AllBody2 +12Y、52.5°），
+        // 因此坐下必须停掉 walk/run/idle 再播 sit，不能只让实体骑上去。
+        plugin.modelPlatform().stopAnimation(npcId, "walk");
+        plugin.modelPlatform().stopAnimation(npcId, "run");
+        plugin.modelPlatform().stopAnimation(npcId, "idle");
+        plugin.modelPlatform().animate(npcId, "sit");
+        plugin.getLogger().info("[TLM] spike: 女仆已坐上座椅并播放 sit，passengers="
+                + seat.getPassengers().size()
                 + "，boneDisplays=" + plugin.modelPlatform().boneDisplayEntities(npcId).size());
     }
 
@@ -285,7 +293,24 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
         }
         boolean wasRiding = maid.isInsideVehicle();
         maid.leaveVehicle();
-        plugin.getLogger().info("[TLM] spike: 女仆已离开座椅（wasRiding=" + wasRiding + "）");
+        plugin.modelPlatform().stopAnimation(npcId, "sit");
+        plugin.modelPlatform().animate(npcId, "idle");
+        plugin.getLogger().info("[TLM] spike: 女仆已离开座椅并回到 idle（wasRiding=" + wasRiding + "）");
+    }
+
+    /** 手动停止指定动画；传 all 停掉常用循环动画（walk/run/idle/sit/sleep）。 */
+    private void stopAnim(String[] args) {
+        int npcId = requireInt(args, 2, "npcId");
+        String anim = requireArg(args, 3, "animation");
+        if (anim.equalsIgnoreCase("all")) {
+            for (String name : List.of("walk", "run", "idle", "sit", "sleep")) {
+                plugin.modelPlatform().stopAnimation(npcId, name);
+            }
+            plugin.getLogger().info("[TLM] spike: 已停止全部循环动画");
+            return;
+        }
+        plugin.modelPlatform().stopAnimation(npcId, anim);
+        plugin.getLogger().info("[TLM] spike: 已停止动画 " + anim);
     }
 
     private static int requireInt(String[] args, int index, String what) {
@@ -311,7 +336,7 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("spike")) {
             return List.of("summon", "anim", "nav", "destroy", "bone", "check", "pos", "attack", "sound", "seat",
-                    "bonetf", "sit", "stand");
+                    "bonetf", "sit", "stand", "stopanim");
         }
         return List.of();
     }
