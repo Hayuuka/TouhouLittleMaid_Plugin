@@ -2840,7 +2840,7 @@ CraftEngine 26.9.2；测试服 `winefox` 模型（自带 `RightHandLocator` 挂�
 
 | 编号 | 验收内容 | 结论 |
 |---|---|---|
-| V0-1 | CE 自定义音效键经 `playSoundAt` 能播 | **服务端通过 [实测]，听感 [待客户端]**：`tlmtest` 包（1 ogg + `configuration/sounds.yml`）被 CE 加载（`已加载sounds（1）`）；`ce reload all` 后重建 `generated/resource_pack.zip`，内含 `assets/tlmtest/sounds.json`（键 `maid.hurt` → `tlmtest:maid.hurt`）与 `assets/tlmtest/sounds/maid_hurt.ogg`；`/tlm spike sound` 调用 `World#playSound(Entity,String,...)` 无异常/警告。**注意：`ce reload all` 才会重建资源包，只改包不重载时客户端收不到。** |
+| V0-1 | CE 自定义音效键经 `playSoundAt` 能播 | **服务端通过 [实测]，听感 [待客户端]**：`tlmtest` 包（1 ogg + `configuration/sounds.yml`）被 CE 加载（`已加载sounds（1）`）；`ce reload all` 后重建 `generated/resource_pack.zip`，内含 `assets/tlmtest/sounds.json`（键 `maid.hurt` → `tlmtest:maid.hurt`）与 `assets/tlmtest/sounds/maid_hurt.ogg`；`/tlm spike sound` 调用 `World#playSound(Entity,String,...)` 无异常/警告。**注意：`ce reload all` 才会重建资源包，只改包不重载时客户端收不到。** **另外 `sounds.yml` 里的 `name` 必须写全限定名 `tlmtest:maid_hurt`；写相对名 `maid_hurt` 时客户端会解析成 `minecraft:maid_hurt`，表现为原版音效能响、自定义音效静音（实测根因）。** |
 | V0-2 | 骨骼 display 上挂 ItemStack 玩家端可见 | **服务端通过 [实测]，视觉 [待客户端]**：`RightHandLocator` 原骨**无 display**，3.6.0/3.7.0 上 `setBoneItem` 均返回 false；按预案注入 0.01 格 cube 后 `boneDisplays` 121 → **122**，`setBoneItem(...)` 返回 **true**；`/tlm spike nav` 走动（z 12.15 → 14.87）期间 `boneDisplays=122` 稳定、日志无异常。**注入必须同时写 `groups[].children` 与 `outliner` 节点 children——只写 groups 时 BB/BM 不认（实测 false）。** 另：BM 默认给骨物品用 `FIXED`（展示框）上下文，物品以中心对齐骨骼 → 手会握在剑身上；`setBoneItemTransform(..., "THIRDPERSON_RIGHTHAND")` 让原版物品模型的 `display.thirdperson_righthand` 生效（钻石剑 translation `[0,4,0.5]`、rotation `[0,-90,55]`、scale `0.85`），握点回到剑柄。不同物品的适配数据本来就在各自物品模型里，不需要逐物品写代码。 |
 | V0-3 | 乘客位（seat）与 BM 显示实体共存无异常 | **服务端通过 [实测]，视觉 [待客户端]**：`/tlm spike seat <npcId>` 生成 `Interaction`（0.8×1.2、`setResponsive(true)`）；玩家右键实测 `passengers=1`；`/tlm spike sit <npcId>` 让女仆骑上最近座椅，实测 `passengers=1`、`boneDisplays=122` 稳定。`/tlm spike stand` 下座。座椅是独立实体，不占 BM display 的乘客位。 |
 | V0-4 | `getAttackCooldown()` 在玩家型 NPC 上返回有效值 | **通过 [实测]**：攻击后采样 `0.1 → 0.7 → 1.0`（2 tick 间隔，约 5 tick 回满，符合默认攻速 4.0 的 1/4 秒恢复），可作 0.9 闸门输入。 |
@@ -2861,6 +2861,13 @@ CraftEngine 26.9.2；测试服 `winefox` 模型（自带 `RightHandLocator` 挂�
 - **原版 `sit` 动画就是"坐在狐狸上"**：`AllBody2` 旋转 X `52.5°`、位置上移 `12`，同时女仆
   `AllBody` 下移 `10.5`、`Root` 下移 `5.5` → 狐狸被转成坐垫，女仆坐上去。
 - `idle/walk/run/jump` 也会驱动狐狸的腿/头/尾巴（walk/run 有 Fox 骨架通道），所以它会跟着女仆动。
+- **日常默认形态没有可见狐狸**：原版 `parallel1` 并行层给 `FOX` 设了
+  `scale = (query.health/query.max_health) < 0.2 ? 1 : 0` —— 平时 scale 0 隐藏，
+  只有血量低于 20% 才出现；`sit/gomoku/picnic` 才把 `AllBody2` 置 scale 1 并转成坐垫，
+  `sleep` 让狐狸蜷在身下，`death` 跟着倒下。没有"按键召唤坐骑"这回事，也没有独立坐骑实体；
+  `vehicle$minecraft:player` 是女仆作为乘客的条件动画，与狐狸无关。
+- 当前我们的 bbmodel 只注入了 7 段基础动画，**缺 `parallel1`**，所以服务端默认把狐狸渲染出来了
+  —— 这是保真度缺口，P4 必须补上 `FOX scale` 规则或注入并行层。
 - **P4 实现纪律**：坐姿必须"停 walk/run/idle 后播放 `sit`"，不要另造骑乘实体或第二模型；
   模型数据已经定义了狐狸坐垫，忠实还原就是播原版动画。
 - 之前误判为"耳朵尾巴"是因为按 `groups[].children` 统计；几何在 `outliner`，必须按 outliner 递归。
