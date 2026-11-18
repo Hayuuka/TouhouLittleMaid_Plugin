@@ -1,0 +1,35 @@
+# 本地测试服运行目录（Paper jar / 插件 / libraries / 存档 / 资源包，约 400MB）
+# 属于部署资产，按 docs/api-facts.md 8.4 不入库，环境可按 8.1 重建
+testserver/
+
+# 资源包产物不入库（BetterModel 每次启动重建，tools/pack_host.py 负责同步）
+plugins/BetterModel/build*.zip
+
+# 模型资产：2026-11-13 服主裁决，成品 bbmodel 入库（内嵌贴图+注入动画，27 个共约 26MB）
+# TLM 美术资源为 CC BY-NC-SA 4.0：仅限非商用，须署名 TartaricAcid 与车万女仆项目
+# 转换源（TLM animation json / png）与 .orig/.bak 备份仍不入库
+model_src/**
+!model_src/**/
+!model_src/**/*.bbmodel
+
+# Gradle / 构建产物
+.gradle/
+build/
+out/
+bin/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# 系统与工具临时文件
+.DS_Store
+Thumbs.db
+*.log
+cmd.fifo
+
+# AI 助手会话数据
+.workbuddy/
