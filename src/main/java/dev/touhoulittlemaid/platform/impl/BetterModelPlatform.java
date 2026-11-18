@@ -244,7 +244,11 @@ public final class BetterModelPlatform implements MaidModelPlatform {
             }
             Object platformItem = bukkitItemStackCtor.newInstance(item);
             Object transformed = transformedOf.invoke(null, platformItem);
-            boneItemStack.invoke(bone, (java.util.function.Predicate<Object>) b -> true, transformed);
+            boolean applied = (boolean) boneItemStack.invoke(
+                    bone, (java.util.function.Predicate<Object>) b -> true, transformed);
+            if (!applied) {
+                warnOnce("骨骼 " + boneName + " 拒绝了物品（骨骼名不存在或模型未就绪）");
+            }
         } catch (ReflectiveOperationException | LinkageError e) {
             warnOnce("骨骼 " + boneName + " 挂物品失败：" + e);
         }
