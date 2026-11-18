@@ -271,6 +271,45 @@ public final class BetterModelPlatform implements MaidModelPlatform {
         }
     }
 
+    @Override
+    public boolean setBoneItemTransform(int npcId, String boneName, String transformName) {
+        Object tracker = tracker(npcId);
+        if (tracker == null) {
+            return false;
+        }
+        try {
+            Object bone = trackerBone.invoke(tracker, boneName);
+            if (bone == null) {
+                return false;
+            }
+            ClassLoader loader = loader();
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            Class<? extends Enum> transformClass = (Class<? extends Enum>)
+                    Class.forName("kr.toxicity.model.api.platform.PlatformItemTransform", true, loader);
+            Object transform = Enum.valueOf(transformClass, transformName.toUpperCase(java.util.Locale.ROOT));
+            Class<?> displayClass = Class.forName(MODEL_DISPLAY, true, loader);
+            Method setDisplay = displayClass.getMethod("display", transformClass);
+            Method applyAtDisplay = bone.getClass().getMethod(
+                    "applyAtDisplay", java.util.function.Predicate.class, java.util.function.Consumer.class);
+            boolean applied = (boolean) applyAtDisplay.invoke(bone,
+                    (java.util.function.Predicate<Object>) b -> true,
+                    (java.util.function.Consumer<Object>) display -> {
+                        try {
+                            setDisplay.invoke(display, transform);
+                        } catch (ReflectiveOperationException e) {
+                            throw new IllegalStateException(e);
+                        }
+                    });
+            if (!applied) {
+                warnOnce("骨骼 " + boneName + " 没有物品 display，无法设置 " + transformName);
+            }
+            return applied;
+        } catch (ReflectiveOperationException | LinkageError | IllegalArgumentException e) {
+            warnOnce("设置骨骼 " + boneName + " 物品上下文失败：" + e);
+            return false;
+        }
+    }
+
     // ---- 内部 ----
 
     private Object tracker(int npcId) {

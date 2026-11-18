@@ -33,4 +33,12 @@ public interface MaidModelPlatform {
     void setBoneItem(int npcId, String boneName, ItemStack item);
 
     void clearBoneItem(int npcId, String boneName);
+
+    /**
+     * 设置骨上物品使用的原版 display 上下文（决定"手抓在剑柄还是剑身"）。
+     *
+     * <p>可选值：NONE / THIRDPERSON_RIGHTHAND / THIRDPERSON_LEFTHAND / FIRSTPERSON_RIGHTHAND /
+     * FIRSTPERSON_LEFTHAND / HEAD / GUI / GROUND / FIXED。物品模型里的 {@code display} 数据按此上下文生效。
+     */
+    boolean setBoneItemTransform(int npcId, String boneName, String transformName);
 }

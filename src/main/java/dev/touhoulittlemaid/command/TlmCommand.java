@@ -61,6 +61,9 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
                 case "attack" -> attack(args);
                 case "sound" -> sound(args);
                 case "seat" -> seat(args);
+                case "bonetf" -> boneTransform(args);
+                case "sit" -> sit(args);
+                case "stand" -> stand(args);
                 default -> plugin.getLogger().info("[TLM] 未知 spike 子命令: " + args[1]);
             }
         } catch (IllegalArgumentException e) {
@@ -232,6 +235,59 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
                 + "，女仆 boneDisplays 不受影响");
     }
 
+    /** 设置骨上物品的原版 display 上下文（THIRDPERSON_RIGHTHAND 等，决定抓握点）。 */
+    private void boneTransform(String[] args) {
+        int npcId = requireInt(args, 2, "npcId");
+        String bone = requireArg(args, 3, "boneName");
+        String transform = requireArg(args, 4, "transform");
+        boolean ok = plugin.modelPlatform().setBoneItemTransform(npcId, bone, transform);
+        plugin.getLogger().info("[TLM] spike: 骨骼 " + bone + " 物品上下文 → " + transform
+                + (ok ? " 成功" : " 失败"));
+    }
+
+    /** V0-3 女仆侧：让女仆坐上最近的 Interaction 座椅，观察 BM display 是否跟随。 */
+    private void sit(String[] args) {
+        int npcId = requireInt(args, 2, "npcId");
+        var maid = plugin.entityPlatform().entity(npcId);
+        if (maid == null) {
+            plugin.getLogger().warning("[TLM] spike: NPC " + npcId + " 没有实体");
+            return;
+        }
+        Interaction seat = null;
+        double best = Double.MAX_VALUE;
+        for (var e : maid.getWorld().getNearbyEntities(maid.getLocation(), 4, 4, 4)) {
+            if (e instanceof Interaction interaction) {
+                double distance = interaction.getLocation().distanceSquared(maid.getLocation());
+                if (distance < best) {
+                    best = distance;
+                    seat = interaction;
+                }
+            }
+        }
+        if (seat == null) {
+            plugin.getLogger().warning("[TLM] spike: 4 格内没有 Interaction 座椅，先 /tlm spike seat " + npcId);
+            return;
+        }
+        plugin.entityPlatform().cancelNavigation(npcId);
+        maid.leaveVehicle();
+        seat.addPassenger(maid);
+        plugin.getLogger().info("[TLM] spike: 女仆已坐上座椅，passengers=" + seat.getPassengers().size()
+                + "，boneDisplays=" + plugin.modelPlatform().boneDisplayEntities(npcId).size());
+    }
+
+    /** 让女仆离开座椅。 */
+    private void stand(String[] args) {
+        int npcId = requireInt(args, 2, "npcId");
+        var maid = plugin.entityPlatform().entity(npcId);
+        if (maid == null) {
+            plugin.getLogger().warning("[TLM] spike: NPC " + npcId + " 没有实体");
+            return;
+        }
+        boolean wasRiding = maid.isInsideVehicle();
+        maid.leaveVehicle();
+        plugin.getLogger().info("[TLM] spike: 女仆已离开座椅（wasRiding=" + wasRiding + "）");
+    }
+
     private static int requireInt(String[] args, int index, String what) {
         String raw = requireArg(args, index, what);
         try {
@@ -254,7 +310,8 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
             return List.of("spike");
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("spike")) {
-            return List.of("summon", "anim", "nav", "destroy", "bone", "check", "pos", "attack", "sound", "seat");
+            return List.of("summon", "anim", "nav", "destroy", "bone", "check", "pos", "attack", "sound", "seat",
+                    "bonetf", "sit", "stand");
         }
         return List.of();
     }
