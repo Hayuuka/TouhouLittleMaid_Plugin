@@ -2841,8 +2841,8 @@ CraftEngine 26.9.2；测试服 `winefox` 模型（自带 `RightHandLocator` 挂�
 | 编号 | 验收内容 | 结论 |
 |---|---|---|
 | V0-1 | CE 自定义音效键经 `playSoundAt` 能播 | **服务端通过 [实测]，听感 [待客户端]**：`tlmtest` 包（1 ogg + `configuration/sounds.yml`）被 CE 加载（`已加载sounds（1）`）；`ce reload all` 后重建 `generated/resource_pack.zip`，内含 `assets/tlmtest/sounds.json`（键 `maid.hurt` → `tlmtest:maid.hurt`）与 `assets/tlmtest/sounds/maid_hurt.ogg`；`/tlm spike sound` 调用 `World#playSound(Entity,String,...)` 无异常/警告。**注意：`ce reload all` 才会重建资源包，只改包不重载时客户端收不到。** |
-| V0-2 | 骨骼 display 上挂 ItemStack 玩家端可见 | **服务端通过 [实测]，视觉 [待客户端]**：`RightHandLocator` 原骨**无 display**，3.6.0/3.7.0 上 `setBoneItem` 均返回 false；按预案注入 0.01 格 cube 后 `boneDisplays` 121 → **122**，`setBoneItem(...)` 返回 **true**；`/tlm spike nav` 走动（z 12.15 → 14.87）期间 `boneDisplays=122` 稳定、日志无异常。**注入必须同时写 `groups[].children` 与 `outliner` 节点 children——只写 groups 时 BB/BM 不认（实测 false）。** |
-| V0-3 | 乘客位（seat）与 BM 显示实体共存无异常 | **探针就绪，[待客户端]**：`/tlm spike seat <npcId>` 在女仆旁生成 `Interaction`（0.8×1.2、`setResponsive(true)`），`PlayerInteractEntityEvent` 命中后 `addPassenger(clicker)` 并打印 `passengers`；服务端生成/监听无异常，真人右键结果待验。座椅是独立实体，不影响同一 NPC 的 `boneDisplays`。 |
+| V0-2 | 骨骼 display 上挂 ItemStack 玩家端可见 | **服务端通过 [实测]，视觉 [待客户端]**：`RightHandLocator` 原骨**无 display**，3.6.0/3.7.0 上 `setBoneItem` 均返回 false；按预案注入 0.01 格 cube 后 `boneDisplays` 121 → **122**，`setBoneItem(...)` 返回 **true**；`/tlm spike nav` 走动（z 12.15 → 14.87）期间 `boneDisplays=122` 稳定、日志无异常。**注入必须同时写 `groups[].children` 与 `outliner` 节点 children——只写 groups 时 BB/BM 不认（实测 false）。** 另：BM 默认给骨物品用 `FIXED`（展示框）上下文，物品以中心对齐骨骼 → 手会握在剑身上；`setBoneItemTransform(..., "THIRDPERSON_RIGHTHAND")` 让原版物品模型的 `display.thirdperson_righthand` 生效（钻石剑 translation `[0,4,0.5]`、rotation `[0,-90,55]`、scale `0.85`），握点回到剑柄。不同物品的适配数据本来就在各自物品模型里，不需要逐物品写代码。 |
+| V0-3 | 乘客位（seat）与 BM 显示实体共存无异常 | **服务端通过 [实测]，视觉 [待客户端]**：`/tlm spike seat <npcId>` 生成 `Interaction`（0.8×1.2、`setResponsive(true)`）；玩家右键实测 `passengers=1`；`/tlm spike sit <npcId>` 让女仆骑上最近座椅，实测 `passengers=1`、`boneDisplays=122` 稳定。`/tlm spike stand` 下座。座椅是独立实体，不占 BM display 的乘客位。 |
 | V0-4 | `getAttackCooldown()` 在玩家型 NPC 上返回有效值 | **通过 [实测]**：攻击后采样 `0.1 → 0.7 → 1.0`（2 tick 间隔，约 5 tick 回满，符合默认攻速 4.0 的 1/4 秒恢复），可作 0.9 闸门输入。 |
 | V0-5 | 女仆死亡事件能抛给外部插件且实体可清理 | **通过（附风险）[实测]**：玩家型 NPC 死亡确实触发 `PlayerDeathEvent`（`CraftEventFactory.callPlayerDeathEvent`）；同服 CraftEngine 的 `EntityDeathLootListener` 因查不到 CE 实体抛 `NullPointerException`（`AbstractEntityManager.getEntityId`，entity=null），每个死亡刷一条 ERROR。→ 后续必须**避免让女仆走原版死亡**（拦截死亡/自管血量与复活），不能指望 CE 兼容。`destroy` 清理实体正常（`spawned=false uuid=null`）。 |
 | V0-6 | 门/箱子交互检测（`hasOpen` 类判定） | **通过（结论：需自实现开关门）[实测]**：在 x=32/36、z=16..24 砌 2 格高石墙，z=18 处开 oak_door，女仆从 z=10 导航到 z=23，**穿过关闭的门**（x=34.00）且全程无 `open=true`（25 次/0.4s 轮询）。即 Citizens Navigator 把门当作可通行、不触发开门；`NavigatorParameters#examiner(BlockExaminer)` 存在但不是通行必需。P3 必须自己实现"临近开门→通过→关门"，否则视觉上是穿模。 |
@@ -2857,5 +2857,6 @@ CraftEngine 26.9.2；测试服 `winefox` 模型（自带 `RightHandLocator` 挂�
 > `/tlm spike anim <npcId> idle` → `/tlm spike nav <npcId> 3` → `/tlm spike destroy <npcId>`；
 > 挂物品 `/tlm spike bone <npcId> <boneName> <MATERIAL|clear>`；位置 `/tlm spike pos <npcId>`；
 > 冷却曲线 `/tlm spike attack <npcId>`；音效 `/tlm spike sound <npcId> <key>`；
-> 座椅 `/tlm spike seat <npcId>`（真人右键上座）。
+> 座椅 `/tlm spike seat <npcId>`（真人右键上座）、`sit/stand <npcId>`（女仆上/下座）；
+> 物品上下文 `/tlm spike bonetf <npcId> <bone> <THIRDPERSON_RIGHTHAND|FIXED|...>`。
 
