@@ -8,13 +8,18 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 /**
  * P0 验证探针命令 `/tlm spike ...`。
@@ -25,11 +30,14 @@ import java.util.Locale;
  *
  * <p>P1 的 {@code command/TlmCommand} 骨架会把本类替换成正式命令树。
  */
-public final class TlmCommand implements CommandExecutor, TabCompleter {
+public final class TlmCommand implements CommandExecutor, TabCompleter, Listener {
 
     private static final String NAME = "TLM-P0";
 
     private final TouhouLittleMaidPlugin plugin;
+
+    /** V0-3 探针：当前测试座椅实体，右键后让点击者骑上去。 */
+    private UUID seatId;
 
     public TlmCommand(TouhouLittleMaidPlugin plugin) {
         this.plugin = plugin;
@@ -38,7 +46,7 @@ public final class TlmCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length < 2 || !args[0].equalsIgnoreCase("spike")) {
-            plugin.getLogger().info("[TLM] 用法: /tlm spike summon|anim|nav|destroy|bone|check ...（P0 验证探针）");
+            plugin.getLogger().info("[TLM] 用法: /tlm spike summon|anim|nav|destroy|bone|check|pos|attack|sound|seat ...（P0 验证探针）");
             return true;
         }
         try {
@@ -52,6 +60,7 @@ public final class TlmCommand implements CommandExecutor, TabCompleter {
                 case "pos" -> position(args);
                 case "attack" -> attack(args);
                 case "sound" -> sound(args);
+                case "seat" -> seat(args);
                 default -> plugin.getLogger().info("[TLM] 未知 spike 子命令: " + args[1]);
             }
         } catch (IllegalArgumentException e) {
@@ -186,6 +195,43 @@ public final class TlmCommand implements CommandExecutor, TabCompleter {
         plugin.getLogger().info("[TLM] spike: 已向附近玩家播放 " + key);
     }
 
+    /** V0-3：在女仆旁生成一个 Interaction 座椅，真人右键后骑上去。 */
+    private void seat(String[] args) {
+        int npcId = requireInt(args, 2, "npcId");
+        var maid = plugin.entityPlatform().entity(npcId);
+        if (maid == null) {
+            plugin.getLogger().warning("[TLM] spike: NPC " + npcId + " 没有实体");
+            return;
+        }
+        Location at = maid.getLocation().add(1.5, 0.6, 0);
+        Interaction seat = maid.getWorld().spawn(at, Interaction.class, interaction -> {
+            interaction.setInteractionWidth(0.8f);
+            interaction.setInteractionHeight(1.2f);
+            interaction.setResponsive(true);
+        });
+        this.seatId = seat.getUniqueId();
+        plugin.getLogger().info("[TLM] spike: 座椅已生成 uuid=" + seatId + " at "
+                + at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ() + "，请右键");
+    }
+
+    @EventHandler
+    public void onSeatClick(PlayerInteractEntityEvent event) {
+        if (seatId == null || !seatId.equals(event.getRightClicked().getUniqueId())) {
+            return;
+        }
+        Player clicker = event.getPlayer();
+        var seat = event.getRightClicked();
+        plugin.getLogger().info("[TLM] spike: 座椅被 " + clicker.getName() + " 右键");
+        if (clicker.isInsideVehicle()) {
+            plugin.getLogger().info("[TLM] spike: 玩家已在骑乘状态，跳过");
+            return;
+        }
+        clicker.leaveVehicle();
+        seat.addPassenger(clicker);
+        plugin.getLogger().info("[TLM] spike: 玩家已上座，passengers=" + seat.getPassengers().size()
+                + "，女仆 boneDisplays 不受影响");
+    }
+
     private static int requireInt(String[] args, int index, String what) {
         String raw = requireArg(args, index, what);
         try {
@@ -208,7 +254,7 @@ public final class TlmCommand implements CommandExecutor, TabCompleter {
             return List.of("spike");
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("spike")) {
-            return List.of("summon", "anim", "nav", "destroy", "bone", "check", "pos", "attack", "sound");
+            return List.of("summon", "anim", "nav", "destroy", "bone", "check", "pos", "attack", "sound", "seat");
         }
         return List.of();
     }

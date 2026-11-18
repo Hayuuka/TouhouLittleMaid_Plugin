@@ -50,6 +50,7 @@ public final class TouhouLittleMaidPlugin extends JavaPlugin {
             TlmCommand executor = new TlmCommand(this);
             command.setExecutor(executor);
             command.setTabCompleter(executor);
+            getServer().getPluginManager().registerEvents(executor, this);
         }
 
         // tick 管线先空转（P3 BehaviorPipeline 接管；Trait#run 不会被调用，api-facts 17.2）
