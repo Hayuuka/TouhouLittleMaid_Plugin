@@ -2,7 +2,7 @@
 
 > 本文件是 Phase 0「依赖打通验证」的交付物。后续阶段写代码前必须先读本文件。
 > 标记约定：**[JAR]** = 从依赖 jar 用 `javap` 反编译确认；**[实测]** = 在本地 Paper 26.2 测试服实跑确认；**[待实测]** = 需要真实客户端人工验证。
-> 最后更新：2026-11-18（v2 P0：第 29 节为平台骨架静态 API 确认、blueprint 冲突处理与 V0 待验收清单）
+> 最后更新：2026-11-18（v2 P0：第 29 节为平台骨架静态 API 确认、blueprint 冲突处理与 V0 待验收清单；**同日 R2 服主终裁**：数据键命名空间 `catmaid:` → `touhoulittlemaid:`、v1 兼容整体废止、plugin.yml 用 softdepend+运行时自检——见第 29.4 节与 `docs/blueprint-revisions.md` R2）
 
 **Phase 0 状态：已完成**（客户端实机验收通过）。
 **Phase 1 状态：已完成并收口**（服务端 6 项验收通过、模型外观客户端确认，详见第 11、15 节）。
@@ -2840,7 +2840,7 @@ CraftEngine 26.9.2；测试服 `winefox` 模型（自带 `RightHandLocator` 挂�
 
 | 编号 | 验收内容 | 结论 |
 |---|---|---|
-| V0-1 | CE 自定义音效键经 `playSoundAt` 能播 | **通过 [实测 + 客户端确认]**：测试包（`plugins/CraftEngine/resources/tlmtest/`，namespace 按蓝图 460 改为 `catmaid`）被 CE 加载（`已加载sounds（1）`）；`ce reload all` 后重建 `generated/resource_pack.zip`，内含 `assets/catmaid/sounds.json`（键 `maid.hurt` → `catmaid:maid.hurt`）与 `assets/catmaid/sounds/maid_hurt.ogg`（用 TLM 原版 `hurt1.ogg`）；`/tlm spike sound <npcId> catmaid:maid.hurt` 客户端可听到。**注意：`ce reload all` 才会重建资源包，只改包不重载时客户端收不到。** **另外 `sounds.yml` 里的 `name` 必须写全限定名 `catmaid:maid_hurt`；写相对名 `maid_hurt` 时客户端会解析成 `minecraft:maid_hurt`，表现为原版音效能响、自定义音效静音（实测根因）。** |
+| V0-1 | CE 自定义音效键经 `playSoundAt` 能播 | **通过 [实测 + 客户端确认]**：测试包（`plugins/CraftEngine/resources/tlmtest/`，namespace 按 R2 裁决改为 `touhoulittlemaid`）被 CE 加载（`已加载sounds（1）`）；`ce reload all` 后重建 `generated/resource_pack.zip`，内含 `assets/touhoulittlemaid/sounds.json`（键 `maid.hurt` → `touhoulittlemaid:maid.hurt`）与 `assets/touhoulittlemaid/sounds/maid_hurt.ogg`（用 TLM 原版 `hurt1.ogg`）；`/tlm spike sound <npcId> touhoulittlemaid:maid.hurt` 客户端可听到。**注意：`ce reload all` 才会重建资源包，只改包不重载时客户端收不到。** **另外 `sounds.yml` 里的 `name` 必须写全限定名 `touhoulittlemaid:maid_hurt`；写相对名 `maid_hurt` 时客户端会解析成 `minecraft:maid_hurt`，表现为原版音效能响、自定义音效静音（实测根因）。** |
 | V0-2 | 骨骼 display 上挂 ItemStack 玩家端可见 | **通过 [实测 + 客户端确认]**：`RightHandLocator` 原骨**无 display**，3.6.0/3.7.0 上 `setBoneItem` 均返回 false；按预案注入 0.01 格 cube 后 `boneDisplays` 121 → **122**，`setBoneItem(...)` 返回 **true**；`/tlm spike nav` 走动（z 12.15 → 14.87）期间 `boneDisplays=122` 稳定、日志无异常。**注入必须同时写 `groups[].children` 与 `outliner` 节点 children——只写 groups 时 BB/BM 不认（实测 false）。** 另：BM 默认给骨物品用 `FIXED`（展示框）上下文，物品以中心对齐骨骼 → 手会握在剑身上；`setBoneItem` 内部现在**自动**套用 `THIRDPERSON_RIGHTHAND`，让原版物品模型的 `display.thirdperson_righthand` 生效（钻石剑 translation `[0,4,0.5]`、rotation `[0,-90,55]`、scale `0.85`），握点回到剑柄。不同物品的适配数据本来就在各自物品模型里，不需要逐物品写代码。**朝向修正**：`RightHandLocator` 组旋转 `[-90, 0, 180]` 已写进 `model_src`，客户端确认剑身朝女仆正前方、手在剑柄。 |
 | V0-3 | 乘客位（seat）与 BM 显示实体共存无异常 | **服务端通过 [实测]，视觉 [待客户端]**：`/tlm spike seat <npcId>` 生成 `Interaction`（0.8×1.2、`setResponsive(true)`）；玩家右键实测 `passengers=1`；`/tlm spike sit <npcId>` 让女仆骑上最近座椅，实测 `passengers=1`、`boneDisplays=122` 稳定。`/tlm spike stand` 下座。座椅是独立实体，不占 BM display 的乘客位。 |
 | V0-4 | `getAttackCooldown()` 在玩家型 NPC 上返回有效值 | **通过 [实测]**：攻击后采样 `0.1 → 0.7 → 1.0`（2 tick 间隔，约 5 tick 回满，符合默认攻速 4.0 的 1/4 秒恢复），可作 0.9 闸门输入。 |
@@ -2875,8 +2875,25 @@ CraftEngine 26.9.2；测试服 `winefox` 模型（自带 `RightHandLocator` 挂�
 > 复跑入口：`/tlm spike summon <model>` → `/tlm spike check <npcId>` →
 > `/tlm spike anim <npcId> idle` → `/tlm spike nav <npcId> 3` → `/tlm spike destroy <npcId>`；
 > 挂物品 `/tlm spike bone <npcId> <boneName> <MATERIAL|clear>`；位置 `/tlm spike pos <npcId>`；
-> 冷却曲线 `/tlm spike attack <npcId>`；音效 `/tlm spike sound <npcId> catmaid:maid.hurt`；
+> 冷却曲线 `/tlm spike attack <npcId>`；音效 `/tlm spike sound <npcId> touhoulittlemaid:maid.hurt`；
 > 座椅 `/tlm spike seat <npcId>`（真人右键上座）、`sit/stand <npcId>`（女仆上/下座，
 > 会同步停 walk/run/idle 并播 sit）、`stopanim <npcId> <anim|all>`（手动停循环动画）。
 > 骨物品的 `THIRDPERSON_RIGHTHAND` 上下文由 `setBoneItem` 内部自动套用，无独立命令。
+
+### 29.4 R2 裁决通告（2026-11-18，与 docs/blueprint-revisions.md R2 同步）
+
+1. **数据键命名空间改 `touhoulittlemaid:`**（服主终裁，推翻 blueprint 0.2 裁决 2 原 `catmaid:` 方案）：
+   本文件历史各节中出现的 `catmaid:` 键名（含 V0-1 结论与上方复跑示例的 `catmaid:maid.hurt`）
+   一律按 `touhoulittlemaid:` 理解；**CE 测试包需按新前缀重建**（`plugins/CraftEngine/resources/tlmtest/`
+   的 pack.yml namespace、sounds.yml 键名、assets 目录三层同步替换为 `touhoulittlemaid` 后 `ce reload all`
+   重发资源包）。V0-1 已验结论（`ce reload all` 才重建包、sounds.yml `name` 必须写全限定名）对新前缀同样成立。
+2. **v1 兼容整体废止**（服主终裁，blueprint 0.10）：`/tlm admin migrate-v1`、`MigrationFromV1`
+   不再实现；第 24.3-6 节"与 v1 互认"口径**作废**（识别层只认 `touhoulittlemaid:` 新键）；
+   第 25.x 魂符三态等"照抄 v1"仍是姿势出处，不受影响。
+3. **plugin.yml 依赖声明**（服主裁决）：用 `softdepend` + onEnable 运行时自检（三插件缺一 →
+   中文告警 → 自禁用）。`depend` 为 Paper 加载期拒绝，无法执行蓝图"缺一禁用自身"路径——
+   "硬依赖"（AGENTS 1.4）指产品层必需，非 plugin.yml 的 depend 键。
+4. AGENTS.md 已同步修订：1.6（命名空间）、6.1（`plugins/CraftEngine/` 修改解禁，改为"须说明修改
+   内容与目的"——V0-1 的 CE 测试包操作自此合法，P0 窗口在阶段记录/台账留痕即可）、6.3（文档
+   白名单加 `docs/blueprint-revisions.md`）。
 
