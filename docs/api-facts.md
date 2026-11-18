@@ -2853,10 +2853,23 @@ CraftEngine 26.9.2；测试服 `winefox` 模型（自带 `RightHandLocator` 挂�
 `plugins/BetterModel/models/winefox.bbmodel` 两份保持一致；该 cube 是 P4 手部物品的定位载体，
 不是临时探针，**保留**。
 
+**FOX 第二骨架（2026-11-18 更正，客户端观察为准）**：`winefox` 等模型在 `Root` 下有
+`FOX → AllBody2` **第二套骨架**（outliner 递归 26 个 cube：狐头/吻部 `zui`/耳朵、躯干 `Body`、
+四肢 `LeftArm2/RightArm2/LeftLeg2/RightLeg2`、尾巴 `wb`、背上的弓 `bow2`）。很多 winefox 变体都有。
+
+- **它不是独立坐骑实体，也不是独立 bbmodel/geometry**：同一个模型、同一个 BM tracker 内渲染。
+- **原版 `sit` 动画就是"坐在狐狸上"**：`AllBody2` 旋转 X `52.5°`、位置上移 `12`，同时女仆
+  `AllBody` 下移 `10.5`、`Root` 下移 `5.5` → 狐狸被转成坐垫，女仆坐上去。
+- `idle/walk/run/jump` 也会驱动狐狸的腿/头/尾巴（walk/run 有 Fox 骨架通道），所以它会跟着女仆动。
+- **P4 实现纪律**：坐姿必须"停 walk/run/idle 后播放 `sit`"，不要另造骑乘实体或第二模型；
+  模型数据已经定义了狐狸坐垫，忠实还原就是播原版动画。
+- 之前误判为"耳朵尾巴"是因为按 `groups[].children` 统计；几何在 `outliner`，必须按 outliner 递归。
+
 > 复跑入口：`/tlm spike summon <model>` → `/tlm spike check <npcId>` →
 > `/tlm spike anim <npcId> idle` → `/tlm spike nav <npcId> 3` → `/tlm spike destroy <npcId>`；
 > 挂物品 `/tlm spike bone <npcId> <boneName> <MATERIAL|clear>`；位置 `/tlm spike pos <npcId>`；
 > 冷却曲线 `/tlm spike attack <npcId>`；音效 `/tlm spike sound <npcId> <key>`；
-> 座椅 `/tlm spike seat <npcId>`（真人右键上座）、`sit/stand <npcId>`（女仆上/下座）；
+> 座椅 `/tlm spike seat <npcId>`（真人右键上座）、`sit/stand <npcId>`（女仆上/下座，
+> 会同步停 walk/run/idle 并播 sit）、`stopanim <npcId> <anim|all>`（手动停循环动画）。
 > 物品上下文 `/tlm spike bonetf <npcId> <bone> <THIRDPERSON_RIGHTHAND|FIXED|...>`。
 
