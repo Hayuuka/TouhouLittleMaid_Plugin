@@ -81,6 +81,7 @@ public final class BetterModelPlatform implements MaidModelPlatform {
     private Method transformedEmpty;
     private Constructor<?> bukkitItemStackCtor;
     private Object loopModifier;
+    private Object playOnceModifier;
 
     public BetterModelPlatform(Plugin plugin) {
         this.plugin = plugin;
@@ -138,12 +139,13 @@ public final class BetterModelPlatform implements MaidModelPlatform {
         long now = System.currentTimeMillis();
         LoopState state = loopStates.get(npcId);
         boolean loop = LOOP_ANIMATIONS.contains(animName);
-        if (state != null && state.tracker() == tracker && animName.equals(state.animation())
-                && (!loop || now - state.playedAt() < LOOP_REPLAY_MS)) {
+        if (loop && state != null && state.tracker() == tracker && animName.equals(state.animation())
+                && now - state.playedAt() < LOOP_REPLAY_MS) {
             return;
         }
         try {
-            boolean played = (boolean) trackerAnimate.invoke(tracker, animName, loopModifier);
+            boolean played = (boolean) trackerAnimate.invoke(
+                    tracker, animName, loop ? loopModifier : playOnceModifier);
             if (!played) {
                 // 模型缺这段动画时 BM 静默返回 false（api-facts 17.9）：只记一次，不报错。
                 if (missingAnimWarned.add(animName)) {
@@ -345,6 +347,11 @@ public final class BetterModelPlatform implements MaidModelPlatform {
             Object loop = typeClass.getField("LOOP").get(null);
             builder.getClass().getMethod("type", typeClass).invoke(builder, loop);
             loopModifier = builder.getClass().getMethod("build").invoke(builder);
+
+            Object onceBuilder = modifierClass.getMethod("builder").invoke(null);
+            Object playOnce = typeClass.getField("PLAY_ONCE").get(null);
+            onceBuilder.getClass().getMethod("type", typeClass).invoke(onceBuilder, playOnce);
+            playOnceModifier = onceBuilder.getClass().getMethod("build").invoke(onceBuilder);
 
             resolved = true;
             return true;
