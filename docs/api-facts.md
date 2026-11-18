@@ -2,7 +2,7 @@
 
 > 本文件是 Phase 0「依赖打通验证」的交付物。后续阶段写代码前必须先读本文件。
 > 标记约定：**[JAR]** = 从依赖 jar 用 `javap` 反编译确认；**[实测]** = 在本地 Paper 26.2 测试服实跑确认；**[待实测]** = 需要真实客户端人工验证。
-> 最后更新：2026-11-13（P10：第 26 节含 sqlite relocate 冲突、命令修复验收与部署注意；第 4.0 节资源包走原版裁决）
+> 最后更新：2026-11-18（v2 P0：第 29 节为平台骨架静态 API 确认、blueprint 冲突处理与 V0 待验收清单）
 
 **Phase 0 状态：已完成**（客户端实机验收通过）。
 **Phase 1 状态：已完成并收口**（服务端 6 项验收通过、模型外观客户端确认，详见第 11、15 节）。
@@ -2800,3 +2800,51 @@ kr.toxicity.model.api.nms.ModelDisplay extends kr.toxicity.model.api.nms.Identif
 3. v1.1.0 发布：build.gradle.kts 版本号升至 1.1.0；新增 CHANGELOG.md（Keep a Changelog
    格式，含 1.0.0 回溯条目）；README（特性/子命令/文档索引/下载文件名）与 config-guide
    （admin-only.hide 键）同步更新。
+
+## 29. v2 P0 平台骨架（2026-11-18）
+
+> v2 是全新仓库（旧 CatMaid 代码不进 v2，blueprint 0.3）。本节只记录 P0 平台骨架的
+> 静态 API 确认与 blueprint 冲突处理；V0 运行时验收由另一个窗口执行，本窗口只实现。
+> 标记沿用：**[JAR]** = javap 反编译确认；**[待验收]** = 需测试服实跑。
+
+### 29.1 静态确认（本轮 javap，依赖同第 1 节基线）
+
+| 结论 | 影响 | 来源 |
+|---|---|---|
+| `HumanEntity#getAttackCooldown()` **存在**（返回 0..1） | V0-4 的静态前提成立；第 21 节"无此方法"是 v1 旧依赖下的结论 | [JAR] paper-api 26.2.build.135-stable |
+| `Player#hideEntity` / `showEntity` 只有 `(Plugin, Entity)`，**没有 UUID 重载** | `hideFrom/showTo` 先用 `Bukkit.getEntity(uuid)` 解析，再 `hideEntity(plugin, entity)` | [JAR] |
+| `Tracker#hasAnimation` **不存在** | `hasAnimation` 用 `tracker.renderer().animation(name).isPresent()` | [JAR] BetterModel 3.7.0-SNAPSHOT-541 |
+| `ModelDisplay#uuid()` 来自 `Identifiable` | `boneDisplayEntities` 逐骨骼取 `getDisplay()` 后取 uuid；`getDisplay()` 可能为 null | [JAR] |
+| `RenderedBone#itemStack(Predicate, TransformedItemStack)` 可用 | 骨上挂物品：`TransformedItemStack.of(new BukkitItemStack(item))`；清空用 `empty()` | [JAR] |
+| `CraftEngineBlocks#isCustomBlock` 只有 `(Block)` | `isCustomBlock(Block, ceId)` 用 `getCustomBlockState(block).owner().value().id()` 与 ceId 比对 | [JAR] CraftEngine 26.9.2 |
+| `World#playSound(Entity, String, SoundCategory, float, float)` 存在 | `playSoundAt` 以实体为锚点广播给附近玩家（自定义声音键是否生效见 V0-1） | [JAR] |
+| `TraitFactory#getTraitClass(String)` 存在 | 适配器构造时先查后注册，避免 `/reload` 重复注册抛错 | [JAR] Citizens 2.0.44-4269 |
+
+### 29.2 blueprint 冲突与最小改动（已落地）
+
+1. **`applyAttributes(FavorTier, boolean)` / `applyEquipment(MaidInventory)` 缺 npcId**：
+   无法定位实体，两方法首参补 `int npcId`。这是 blueprint 0.7 的笔误，其余签名未动。
+2. **`MaidTraitV2` 落点**：P1 表格写 `maid/MaidTraitV2.java`，但它必须
+   `extends net.citizensnpcs.api.trait.Trait`；0.4 环2 禁 Citizens，故只能放
+   `platform/impl/`。P1 的实现按此路径继续，不要再建 `maid/` 顶层包。
+3. **P0 接口签名依赖 `FavorTier` / `MaidInventory`**：两者随 P0 一并落地。
+   `FavorTier` 按 0.7 完整实现；`MaidInventory` 只有 82 槽常量（0.8 口径），
+   槽位存储与 `applyEquipment` 实体装备写回留到 P1。
+4. **P0 验收链需要触发入口**：新增 `/tlm spike ...` 探针（只输出控制台日志，
+   不硬编码玩家可见文案）；P1 的正式 `command/TlmCommand` 会替换它。
+
+### 29.3 V0 待验收清单（本窗口不执行）
+
+| 编号 | 验收内容 | 状态 |
+|---|---|---|
+| V0-1 | CE 自定义音效键经 `playSoundAt` 能播 / 隐藏实体名不可见 | [待验收] |
+| V0-2 | 骨骼 display 上挂 ItemStack 玩家端可见（`setBoneItem`） | [待验收] |
+| V0-3 | 乘客位（seat）与 BM 显示实体共存无异常 | [待验收] |
+| V0-4 | `getAttackCooldown()` 在玩家型 NPC 上返回有效值 | [待验收] |
+| V0-5 | 女仆死亡事件能抛给外部插件且实体可清理 | [待验收] |
+| V0-6 | 门/箱子交互检测（`hasOpen` 类判定） | [待验收] |
+
+> 复跑入口：`/tlm spike summon <model>` → `/tlm spike check <npcId>` →
+> `/tlm spike anim <npcId> idle` → `/tlm spike nav <npcId> 3` → `/tlm spike destroy <npcId>`；
+> 挂物品用 `/tlm spike bone <npcId> <boneName> <MATERIAL|clear>`。
+
