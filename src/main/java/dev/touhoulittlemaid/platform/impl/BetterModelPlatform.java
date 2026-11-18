@@ -62,7 +62,7 @@ public final class BetterModelPlatform implements MaidModelPlatform {
 
     private boolean resolved;
     private boolean disabled;
-    private boolean warned;
+    private final Set<String> warned = new HashSet<>();
 
     private Method modelOrNull;
     private Method registryOrNull;
@@ -248,7 +248,11 @@ public final class BetterModelPlatform implements MaidModelPlatform {
                     bone, (java.util.function.Predicate<Object>) b -> true, transformed);
             if (!applied) {
                 warnOnce("骨骼 " + boneName + " 拒绝了物品（骨骼名不存在或模型未就绪）");
+                return;
             }
+            // 原版手持物品的握点/朝向由物品模型 display.thirdperson_righthand 决定；
+            // BM 默认 FIXED 会把物品按中心对齐骨骼，导致手握在剑身上。这里统一套用右手上下文。
+            applyItemTransform(bone, "THIRDPERSON_RIGHTHAND");
         } catch (ReflectiveOperationException | LinkageError e) {
             warnOnce("骨骼 " + boneName + " 挂物品失败：" + e);
         }
@@ -271,17 +275,9 @@ public final class BetterModelPlatform implements MaidModelPlatform {
         }
     }
 
-    @Override
-    public boolean setBoneItemTransform(int npcId, String boneName, String transformName) {
-        Object tracker = tracker(npcId);
-        if (tracker == null) {
-            return false;
-        }
+    /** 给骨上物品套用原版 display 上下文；失败只告警，不影响物品已挂上的事实。 */
+    private void applyItemTransform(Object bone, String transformName) {
         try {
-            Object bone = trackerBone.invoke(tracker, boneName);
-            if (bone == null) {
-                return false;
-            }
             ClassLoader loader = loader();
             @SuppressWarnings({"unchecked", "rawtypes"})
             Class<? extends Enum> transformClass = (Class<? extends Enum>)
@@ -301,12 +297,10 @@ public final class BetterModelPlatform implements MaidModelPlatform {
                         }
                     });
             if (!applied) {
-                warnOnce("骨骼 " + boneName + " 没有物品 display，无法设置 " + transformName);
+                warnOnce("骨骼 display 未就绪，未能套用物品上下文 " + transformName);
             }
-            return applied;
         } catch (ReflectiveOperationException | LinkageError | IllegalArgumentException e) {
-            warnOnce("设置骨骼 " + boneName + " 物品上下文失败：" + e);
-            return false;
+            warnOnce("套用骨物品上下文失败：" + e);
         }
     }
 
@@ -419,8 +413,7 @@ public final class BetterModelPlatform implements MaidModelPlatform {
     }
 
     private void warnOnce(String message) {
-        if (!warned) {
-            warned = true;
+        if (warned.add(message)) {
             plugin.getLogger().log(Level.WARNING, "[TLM] " + message);
         }
     }

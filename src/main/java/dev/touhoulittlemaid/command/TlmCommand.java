@@ -61,7 +61,6 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
                 case "attack" -> attack(args);
                 case "sound" -> sound(args);
                 case "seat" -> seat(args);
-                case "bonetf" -> boneTransform(args);
                 case "sit" -> sit(args);
                 case "stand" -> stand(args);
                 case "stopanim" -> stopAnim(args);
@@ -226,6 +225,10 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
         Player clicker = event.getPlayer();
         var seat = event.getRightClicked();
         plugin.getLogger().info("[TLM] spike: 座椅被 " + clicker.getName() + " 右键");
+        if (!seat.getPassengers().isEmpty()) {
+            plugin.getLogger().info("[TLM] spike: 座椅已被占用，跳过");
+            return;
+        }
         if (clicker.isInsideVehicle()) {
             plugin.getLogger().info("[TLM] spike: 玩家已在骑乘状态，跳过");
             return;
@@ -234,16 +237,6 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
         seat.addPassenger(clicker);
         plugin.getLogger().info("[TLM] spike: 玩家已上座，passengers=" + seat.getPassengers().size()
                 + "，女仆 boneDisplays 不受影响");
-    }
-
-    /** 设置骨上物品的原版 display 上下文（THIRDPERSON_RIGHTHAND 等，决定抓握点）。 */
-    private void boneTransform(String[] args) {
-        int npcId = requireInt(args, 2, "npcId");
-        String bone = requireArg(args, 3, "boneName");
-        String transform = requireArg(args, 4, "transform");
-        boolean ok = plugin.modelPlatform().setBoneItemTransform(npcId, bone, transform);
-        plugin.getLogger().info("[TLM] spike: 骨骼 " + bone + " 物品上下文 → " + transform
-                + (ok ? " 成功" : " 失败"));
     }
 
     /** V0-3 女仆侧：让女仆坐上最近的 Interaction 座椅，观察 BM display 是否跟随。 */
@@ -267,6 +260,10 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
         }
         if (seat == null) {
             plugin.getLogger().warning("[TLM] spike: 4 格内没有 Interaction 座椅，先 /tlm spike seat " + npcId);
+            return;
+        }
+        if (!seat.getPassengers().isEmpty()) {
+            plugin.getLogger().warning("[TLM] spike: 座椅已被占用，先 /tlm spike stand 或清理旧座椅");
             return;
         }
         plugin.entityPlatform().cancelNavigation(npcId);
@@ -336,7 +333,7 @@ public final class TlmCommand implements CommandExecutor, TabCompleter, Listener
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("spike")) {
             return List.of("summon", "anim", "nav", "destroy", "bone", "check", "pos", "attack", "sound", "seat",
-                    "bonetf", "sit", "stand", "stopanim");
+                    "sit", "stand", "stopanim");
         }
         return List.of();
     }

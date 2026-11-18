@@ -29,16 +29,8 @@ public interface MaidModelPlatform {
     /** 骨 display 实体 UUID 列表（hideEntity 用，api-facts 24.3-3）。 */
     List<UUID> boneDisplayEntities(int npcId);
 
-    /** 骨上挂物品（P4 手持可见，V0-2）。 */
+    /** 骨上挂物品（P4 手持可见，V0-2）。实现内部自动套用原版 thirdperson_righthand 上下文。 */
     void setBoneItem(int npcId, String boneName, ItemStack item);
 
     void clearBoneItem(int npcId, String boneName);
-
-    /**
-     * 设置骨上物品使用的原版 display 上下文（决定"手抓在剑柄还是剑身"）。
-     *
-     * <p>可选值：NONE / THIRDPERSON_RIGHTHAND / THIRDPERSON_LEFTHAND / FIRSTPERSON_RIGHTHAND /
-     * FIRSTPERSON_LEFTHAND / HEAD / GUI / GROUND / FIXED。物品模型里的 {@code display} 数据按此上下文生效。
-     */
-    boolean setBoneItemTransform(int npcId, String boneName, String transformName);
 }
