@@ -2803,9 +2803,9 @@ kr.toxicity.model.api.nms.ModelDisplay extends kr.toxicity.model.api.nms.Identif
 
 ## 29. v2 P0 平台骨架（2026-11-18）
 
-> v2 是全新仓库（旧 CatMaid 代码不进 v2，blueprint 0.3）。本节只记录 P0 平台骨架的
-> 静态 API 确认与 blueprint 冲突处理；V0 运行时验收由另一个窗口执行，本窗口只实现。
-> 标记沿用：**[JAR]** = javap 反编译确认；**[待验收]** = 需测试服实跑。
+> v2 是全新仓库（旧 CatMaid 代码不进 v2，blueprint 0.3）。本节记录 P0 平台骨架的
+> 静态 API 确认、blueprint 冲突处理，以及 2026-11-18 在测试服执行的 V0 运行时结论。
+> 标记沿用：**[JAR]** = javap 反编译确认；**[实测]** = 测试服实跑；**[待客户端]** = 需真人客户端观察。
 
 ### 29.1 静态确认（本轮 javap，依赖同第 1 节基线）
 
@@ -2833,18 +2833,28 @@ kr.toxicity.model.api.nms.ModelDisplay extends kr.toxicity.model.api.nms.Identif
 4. **P0 验收链需要触发入口**：新增 `/tlm spike ...` 探针（只输出控制台日志，
    不硬编码玩家可见文案）；P1 的正式 `command/TlmCommand` 会替换它。
 
-### 29.3 V0 待验收清单（本窗口不执行）
+### 29.3 V0 运行时验收（测试服，2026-11-18）
 
-| 编号 | 验收内容 | 状态 |
+依赖实际版本：Paper 26.2-135、Citizens 2.0.44-b4269、**BetterModel 3.7.0-SNAPSHOT-541**、
+CraftEngine 26.9.2；测试服 `winefox` 模型（自带 `RightHandLocator` 挂点骨）。
+
+| 编号 | 验收内容 | 结论 |
 |---|---|---|
-| V0-1 | CE 自定义音效键经 `playSoundAt` 能播 / 隐藏实体名不可见 | [待验收] |
-| V0-2 | 骨骼 display 上挂 ItemStack 玩家端可见（`setBoneItem`） | [待验收] |
-| V0-3 | 乘客位（seat）与 BM 显示实体共存无异常 | [待验收] |
-| V0-4 | `getAttackCooldown()` 在玩家型 NPC 上返回有效值 | [待验收] |
-| V0-5 | 女仆死亡事件能抛给外部插件且实体可清理 | [待验收] |
-| V0-6 | 门/箱子交互检测（`hasOpen` 类判定） | [待验收] |
+| V0-1 | CE 自定义音效键经 `playSoundAt` 能播 | **服务端通过 [实测]，听感 [待客户端]**：`tlmtest` 包（1 ogg + `configuration/sounds.yml`）被 CE 加载（`已加载sounds（1）`）；`ce reload all` 后重建 `generated/resource_pack.zip`，内含 `assets/tlmtest/sounds.json`（键 `maid.hurt` → `tlmtest:maid.hurt`）与 `assets/tlmtest/sounds/maid_hurt.ogg`；`/tlm spike sound` 调用 `World#playSound(Entity,String,...)` 无异常/警告。**注意：`ce reload all` 才会重建资源包，只改包不重载时客户端收不到。** |
+| V0-2 | 骨骼 display 上挂 ItemStack 玩家端可见 | **服务端通过 [实测]，视觉 [待客户端]**：`RightHandLocator` 原骨**无 display**，3.6.0/3.7.0 上 `setBoneItem` 均返回 false；按预案注入 0.01 格 cube 后 `boneDisplays` 121 → **122**，`setBoneItem(...)` 返回 **true**；`/tlm spike nav` 走动（z 12.15 → 14.87）期间 `boneDisplays=122` 稳定、日志无异常。**注入必须同时写 `groups[].children` 与 `outliner` 节点 children——只写 groups 时 BB/BM 不认（实测 false）。** |
+| V0-3 | 乘客位（seat）与 BM 显示实体共存无异常 | **[待实现探针]**：需 `Interaction#setResponsive(true)` + 真人右键 + `addPassenger` 的座椅探针；P0 骨架无座椅代码，未验。API 静态可用（`setInteractionWidth/Height`、`Entity#addPassenger`）。 |
+| V0-4 | `getAttackCooldown()` 在玩家型 NPC 上返回有效值 | **通过 [实测]**：攻击后采样 `0.1 → 0.7 → 1.0`（2 tick 间隔，约 5 tick 回满，符合默认攻速 4.0 的 1/4 秒恢复），可作 0.9 闸门输入。 |
+| V0-5 | 女仆死亡事件能抛给外部插件且实体可清理 | **通过（附风险）[实测]**：玩家型 NPC 死亡确实触发 `PlayerDeathEvent`（`CraftEventFactory.callPlayerDeathEvent`）；同服 CraftEngine 的 `EntityDeathLootListener` 因查不到 CE 实体抛 `NullPointerException`（`AbstractEntityManager.getEntityId`，entity=null），每个死亡刷一条 ERROR。→ 后续必须**避免让女仆走原版死亡**（拦截死亡/自管血量与复活），不能指望 CE 兼容。`destroy` 清理实体正常（`spawned=false uuid=null`）。 |
+| V0-6 | 门/箱子交互检测（`hasOpen` 类判定） | **[待实现探针]**：`NavigatorParameters#examiner(BlockExaminer)` 与 `BlockExaminer#isPassable/getCost` 静态确认存在，但"过门自动开/关"需实现 examiner + 开关门逻辑后实跑；P0 骨架未实现。 |
+
+**V0-2 注入记录（可复现）**：`RightHandLocator` 组 pivot `[3.525,16.275,0.05]`，注入元素
+`RightHandLocatorItem`，`from=[3.445,16.195,-0.03]`、`to=[3.605,16.355,0.13]`（0.16 单位 =
+0.01 格），贴图 UV 0。`model_src/酒狐家族/winefox/winefox.bbmodel` 与测试服
+`plugins/BetterModel/models/winefox.bbmodel` 两份保持一致；该 cube 是 P4 手部物品的定位载体，
+不是临时探针，**保留**。
 
 > 复跑入口：`/tlm spike summon <model>` → `/tlm spike check <npcId>` →
 > `/tlm spike anim <npcId> idle` → `/tlm spike nav <npcId> 3` → `/tlm spike destroy <npcId>`；
-> 挂物品用 `/tlm spike bone <npcId> <boneName> <MATERIAL|clear>`。
+> 挂物品 `/tlm spike bone <npcId> <boneName> <MATERIAL|clear>`；位置 `/tlm spike pos <npcId>`；
+> 冷却曲线 `/tlm spike attack <npcId>`；音效 `/tlm spike sound <npcId> <key>`。
 
