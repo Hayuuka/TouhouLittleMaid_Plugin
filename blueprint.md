@@ -27,12 +27,12 @@
 ### 0.2 裁决记录（已定，执行时不再讨论）
 
 1. **另起新项目（服主 2026-11-17 终裁）**：不基于 CatMaid v1 仓库升级，而是新建本仓库（TouhouLittleMaid）完整重写；v1 仓库（`d:\work\女仆插件`）整体冻结为移植参考源，"照抄 v1"组件从那里逐文件搬运，不整体复制 src。理由：架构解耦要求 Citizens/BM/CE 调用被压进唯一平台适配层，而 v1 全部行为与 Manager 直接引用这些 API，改造成本等于重写；v1 的 Mode 五模式、铃铛死亡链、右键喂食在 v2 中本来就要被 TLM 原型推翻。
-2. **命名与数据键（服主 2026-11-17；后半被 R2 修订 2026-11-18 服主终裁推翻）**：插件名/命令/包名/DB 目录取新名（TouhouLittleMaid、`/tlm`、`dev.touhoulittlemaid`、`plugins/TouhouLittleMaid/tlm.db`）；**PDC 键与 CE 物品 id 一律用 `touhoulittlemaid:` 前缀**（R2 裁决：全新项目零 v1 兼容——原"沿用 `catmaid:` 以零改名兼容 v1 凭证"方案随 v1 兼容整体废止而作废，见 0.10；禁止使用 `catmaid:` 遗留键）。
+2. **命名与数据键（服主 2026-11-17；后半被 R2 修订 2026-11-18 服主终裁推翻）**：插件名/命令/包名/DB 目录取新名（TouhouLittleMaid、`/tlm`、`dev.touhoulittlemaid`、`plugins/TouhouLittleMaid/tlm.db`）；**PDC 键与 CE 物品 id 一律用 `touhoulittlemaid:` 前缀**（R2 裁决：全新项目零 v1 兼容——原"沿用 `catmaid:` 以零改名兼容 v1 凭证"方案随 v1 兼容整体废止而作废，见 0.10；禁止使用 `catmaid:` 遗留键）。**消歧（R3）**：`touhoulittlemaid:`（本插件数据键）与 `touhou_little_maid:`（TLM 资产命名空间——动画 json 键与原版物品 id 使用）只差下划线、极易混淆，**永不混用**；从 TLM 资产搬入的键必须由工具重写为本插件键（0.9 $ 规则与 M1 注入器已钉死）。
 3. **三项产品裁决（服主 2026-11-17）**：
    - **台词系统完全 TLM 化**：删除 v1 `dialogue.yml` 全部文字台词与 `DialogueManager`；对白表现 = 事件语音（ogg，经 CE 资源包 `sounds.json` 下发）+ 颜文字聊天气泡（TextDisplay）。
    - **删除右键喂食**：TLM 无此交互。好感来源改为三餐/偷吃/睡觉/娱乐等 TLM 渠道（见 P7 数值表）。
    - **魂符先行、祭坛进主线后段**：前期用三态魂符召唤（机制照抄 v1 实现姿势，P1 落地，PDC 键用 `touhoulittlemaid:` 新前缀），祭坛多方块 + P 点作为 P11 独立阶段，完成后成为正式获取/复活仪式（魂符保留为**永久并行获取口**，`config.acquisition.allow-talisman: true`——R2：不再是"v1 老玩家兼容入口"，v1 兼容已整体废止）。
-4. **资源包与模型可见性（服主 2026-11-17）**：模型包两层分发——基础包强制（CE 合并统一下发）；**扩展模型包纯手动下载**（玩家自己下载 zip 安装，服务端不推送——模型会越来越多，服务器流量扛不住每次全员下发），插件用 `/tlm pack claim` 自声明（**可 `unclaim` 取消**）；未声明者对该层模型的女仆**整体隐藏**（绝不出现紫黑块）；同时保留 v1 的玩家级"一键隐藏全部女仆"开关（`/tlm hide`，给不喜欢猫娘的玩家）。细则见 0.13。
+4. **资源包与模型可见性（服主 2026-11-17）**：模型包两层分发——基础包强制（CE 合并统一下发）；**扩展模型包纯手动下载**（玩家自己下载 zip 安装，服务端不推送——模型会越来越多，服务器流量扛不住每次全员下发），插件用 `/tlm pack claim` 自声明（**可 `unclaim` 取消**）；未声明者对该层模型的女仆**整体隐藏**（绝不出现紫黑块）；同时保留玩家级"一键隐藏全部女仆"开关（`/tlm hide`，给不喜欢猫娘的玩家——R3 注：服主点名保留的功能项，实现姿势照抄 v1 P11 基建但非 v1 兼容）。细则见 0.13。
 5. **东方系模型纳入（服主 2026-11-17，本项目核心目标）**：v1 只接入了 27 个酒狐系模型，因为东方原生系模型（旧命名空间 265 个）动画硬编码在 TLM 客户端 Java 里、无 json 可注（2026-11-17 调查已定位：`client/animation/inner/MaidBaseAnimation.java` 等，骨骼为小写 `head/armRight/armLeft/legLeft/legRight`）。本项目以 **M 轮资产管线**（0.12）解决：几何转换修复 + 硬编码动画烘焙 + 挂点骨注入，把东方原生系模型加入可玩池。
 6. **依赖策略**：Citizens/BetterModel 保留（自研替代成本远超收益，无免费现成替代品）；三者的调用**只允许出现在 `platform/impl/` 三个适配器内**（0.4 三环纪律）。全部免费可得。
 7. **约束变更报告**（对 agent.md 的修订，其余红线全部不变）：
@@ -53,7 +53,7 @@
 | 固定 36 格背包（好感扩容） | **8 种背包类型**（empty/small/middle/big/crafting/ender/furnace/tank），换装制，恒 36 物理格 + 类型决定 GUI 可用格数 | [规格书 §7.1] |
 | 无日程 | 三班制 DAY/NIGHT/ALL + 家模式三锚点（work/idle/sleep） | [规格书 §1.4] |
 | `owner_title`（称呼）字段 | 删除（台词没了，无消费者） | — |
-| `max-per-player` 上限 | 保留 config 口径（默认 2，生产连续性），但内部实现改为 **quota 只增不减**（TLM 口径） | [规格书 §12.5] |
+| `max-per-player` 上限 | 保留 config 口径（默认 2），内部实现为 **quota 只增不减**（TLM 口径） | [规格书 §12.5] |
 
 ### 0.4 三环架构与版本迁移策略
 
@@ -69,7 +69,7 @@
   —— Citizens/BM/CE 的调用全项目只落在这里。BM/CE 因 classloader 隔离走反射（v1 ModelApplier 姿势，api-facts 3.1/24.3-5）。
 ```
 
-- **审查规则**：环2 出现 `net.citizensnpcs` / `kr.toxicity` / `kr.toxicity188` / CE 任何 FQCN 即为返工；环1 出现 `org.bukkit` 即为返工。以包名前缀静态判别，Phase 0 在 `tools/check_rings.py` 写一个 200 行内的扫描脚本挂进验收。
+- **审查规则**：环2 出现 `net.citizensnpcs` / `kr.toxicity` / `kr.toxicity188` / CE 任何 FQCN 即为返工；环1 出现 `org.bukkit` 即为返工。以包名前缀静态判别，Phase 0 在 `tools/check_rings.py` 写一个 200 行内的扫描脚本挂进验收；**并校验源码顶层包 ∈ 0.5 包结构白名单（R3：maid/ 在 P1 表与 P2 表两次出现于 0.5 清单之外——白名单校验把这类漂移交给机器，不再靠窗口自觉）**。
 - **MC 版本迁移 runbook**（"便于随版本更新迁移"的落点，写入 `docs/migration-runbook.md` 于 P12）：
   1. 升 `paper-api` 坐标 → 编译 → 环2 编译错误按映射报告 §2 事件表逐项替换；
   2. `javap` 重核三平台 jar（Citizens/BM/CE）→ 只改 `platform/impl`；
@@ -117,6 +117,8 @@ dev.touhoulittlemaid
  │       ├─ BetterModelPlatform         // 唯一 BM import 点（全反射）
  │       └─ CraftEngineContent          // 唯一 CE import 点（全反射）
  ├─ task                                // 22 任务（P5/P6 全量；每个类见分阶段表）
+ ├─ maid                                // 实体侧管理器（R3 新增顶层包——P1/P2 两次 maid/ 漂移教训后正名，非 gui/ 子包）：
+ │   │                                  //   NameTagManager / MaidVisibilityManager / ModelPackManager（P2）
  ├─ bauble
  │   ├─ BaubleRegistry / Bauble / effects/*   // 饰品系统（P8）
  ├─ death
@@ -129,8 +131,7 @@ dev.touhoulittlemaid
  │   ├─ MaidPackLoader / MaidPackValidator              // 女仆包开放格式（P12）
  ├─ gui                                 // GuiManager / GuiLayout / 各 Holder（P2）
  ├─ data
- │   ├─ Database / MaidRepository / TombstoneRepository / ItemStackCodec
- │   └─ MigrationFromV1                 // v1→v2 一次性迁移器（P1）
+ │   └─ Database / MaidRepository / TombstoneRepository / ItemStackCodec
  ├─ event                              // 领域事件 Bukkit 化（沿用 v1 模式）
  ├─ listener                           // 只做事件转发（agent.md 5.3）
  ├─ command                            // TlmCommand v2
@@ -187,7 +188,7 @@ CREATE TABLE IF NOT EXISTS tombstones (           -- P9
 );
 CREATE TABLE IF NOT EXISTS player_prefs (
   uuid        TEXT PRIMARY KEY,
-  hide_models INTEGER NOT NULL DEFAULT 0,         -- 玩家级一键隐藏（/tlm hide，沿用 v1）
+  hide_models INTEGER NOT NULL DEFAULT 0,         -- 玩家级一键隐藏（/tlm hide，0.13 机制）
   quota       INTEGER NOT NULL DEFAULT 0,         -- 女仆额度（只增不减，P1）
   power       REAL NOT NULL DEFAULT 0.0,          -- P 点（P11 启用，列先建好）
   claimed_packs TEXT NOT NULL DEFAULT '[]'        -- 已声明安装的模型包 JSON 数组（0.13，/tlm pack claim）
@@ -288,7 +289,7 @@ slot 73..81 = 任务槽 9 格（预留：fishing 鱼获、extinguishing 灭火�
 TLM 通用骨架 97 动作 [规格书 §8.1]，完整键名清单以 `D:\work\_tlm_research\decompiled\assets\touhou_little_maid\animation\maid.animation.json` 为准（2026-11-17 实测抽取）。`inject_tlm_anims.py` 注入清单（25 段，**名称照抄 JSON 原键，含冒号**；名称即 BetterModel `Tracker#animate` 的动画名）：
 `idle, walk, run, sit, jump, attacked, death, sleep, swim, swim_stand, ladder_up, ladder_stillness, ladder_down, beg, chair, boat, picnic, game_win, game_lost, use_mainhand:eat, use_mainhand:drink, hold_mainhand:sword, hold_mainhand:bow, hold_mainhand:shield, hold_mainhand:fishing`
 （手部状态机的其余键——hold/use/swing 各类别、swing:sword、spyglass、crossbow、spear、axe/pickaxe/shovel/hoe、throwable_potion 等——模型容量允许时由 M1 全量注入，代码侧按 HandAnimationSystem 解析名播放、缺了走降级表。）
-**手部动画命名规则（真实约定，2026-11-17 从 json 实测）**：`hold_mainhand:<类别>` / `hold_offhand:<类别>` / `use_mainhand:<类别>` / `use_offhand:<类别>` / `swing:<类别>`（**主手挥击无 hand 段**）/ `swing_offhand:<类别>`；物品精确匹配用 `$` 前缀（如 `hold_mainhand$touhou_little_maid:picnic_basket`）。
+**手部动画命名规则（真实约定，2026-11-17 从 json 实测）**：`hold_mainhand:<类别>` / `hold_offhand:<类别>` / `use_mainhand:<类别>` / `use_offhand:<类别>` / `swing:<类别>`（**主手挥击无 hand 段**）/ `swing_offhand:<类别>`；物品精确匹配用 `$` 前缀（如 `hold_mainhand$touhou_little_maid:picnic_basket`）。**$ 重写规则（R3 钉死）**：$ 精确匹配条目原键来自 TLM 资产命名空间（`touhou_little_maid:` 物品 id）——**注入时必须由 inject_tlm_anims.py 重写为 `$touhoulittlemaid:`（本插件 CE 物品 id）**，否则精确匹配静默失效、回落 `:category` 类别匹配（不报错、只掉观感，最难排查的一类故障；0.2 裁决 2 消歧条款的落地）。
 **降级表**（模型缺该动画时 `animate` 静默返回 false，api-facts 17.9——按此表回落，禁止报错）：
 
 | 缺失动画 | 降级 |
@@ -330,7 +331,7 @@ TLM 通用骨架 97 动作 [规格书 §8.1]，完整键名清单以 `D:\work\_t
 | 挂点骨 | **模型自带全套**：`RightHandLocator/LeftHandLocator/BackpackLocator/LeftWaistLocator/RightWaistLocator/SheathLocator/BladeLocator/RifleLocator/PistolLocator`（2026-11-17 从 winefox.json 几何实测确认） | 无，需转换时注入 |
 
 **M1 — 酒狐系管线强化（最先做，P4 的前置）**
-1. `inject_tlm_anims.py` 注入动作清单从 7 段扩到 0.9 的 25 段（`--anims` 全量名单；动画名照抄 maid.animation.json 原名，含冒号）。
+1. `inject_tlm_anims.py` 注入动作清单从 7 段扩到 0.9 的 25 段（`--anims` 全量名单；动画名照抄 maid.animation.json 原名，含冒号）；**同时把注入条目中 `$touhou_little_maid:` 物品 id 重写为 `$touhoulittlemaid:`**（0.9 $ 重写规则，R3——不重写则 P4 手持精确匹配静默失效，27 个模型全部重跑）。
 2. **轴向翻转验证**（注入报告 §7-A 遗留的最高风险）：客户端对 winefox 跑 `walk` 观察四肢；顺拐/反关节 → 注入器对 rotation 的 x/y 取反、position 的 x 取反（Blockbench `compileBedrockKeyframe` 规则）后全量重跑。
 3. 新增 `tools/anim_validator.py`（静态校验自动化，注入报告 §5 的人工清单脚本化）：animators 键 ∈ groups uuid、必备动作存在（idle/walk 红线）、molang 跳帧计数报告。
 4. **验收**：27 模型全部注入 25 段 + 校验通过 + walk 四肢方向正常 + P4 所需 hold/use/swing 段抽查 3 个模型客户端正常。
@@ -370,7 +371,6 @@ model-packs:
 3. 隐藏实施：复用 v1 P11 基建（api-facts 第 28 节全套：骨 display 逐个 hideEntity + 名牌 + 底层实体 + 四挂点 + 低频 sweep 对账）；新增两个挂点：**claim/unclaim 变更时全量 applyAll/restoreAll**、**换模型时按新模型层重判**。
 4. 与 `/tlm hide` 的关系：hide（玩家级一键隐藏全部女仆）优先级最高、独立开关；两者同走 MaidVisibilityManager 的施加点，效果叠加（任一触发即隐藏）。
 5. 模型选择 GUI：图标按层染色/lore 标注（基础/扩展），选扩展模型时 lore 警示"未安装扩展包的玩家将看不到她"；`/tlm pack claim` 前允许选（她自己的观感取决于自己 claim 了吗）。
-6. ~~迁移映射：v1 玩家存量模型归层~~（R2 删除：v1 兼容整体废止，见 0.10——无存量 v1 模型需要归层；新插件选模型即写新档，无此场景）。
 
 
 ---
@@ -394,7 +394,7 @@ model-packs:
 | `platform/impl/CraftEngineContent.java` | 最小实现：customItem/customItemId/playSoundAt——反射姿势照抄 v1 `util/MaidItems`（api-facts 24.3-5/6） |
 | `platform/impl/MaidTraitV2.java` | R1：纯数据 Trait（trait 名 `tlm`，存 maidId）。**必须 `extends net.citizensnpcs.api.trait.Trait`，0.4 环纪律禁止环2 import Citizens → 只能落 platform/impl**；P0 的 spawn 链（getOrAddTrait）需要它参与签名 |
 | `command/TlmCommand.java` | R1/R2：P0 验证探针 `/tlm spike`，子命令 13 个：`summon/anim/stopanim/sit/stand/nav/pos/attack/sound/seat/bone/destroy/check`（R2 扩至 V0 验收所需全集：sound→V0-1、bone→V0-2、seat→V0-3、attack→V0-4、sit/stand/stopanim→动画观察、pos→导航位移观察）——把平台接口串成验收链，输出**只走控制台日志**（不硬编码玩家可见文案，messages.yml P1 才接入）；P1 正式命令树落地时整体替换 |
-| `tools/check_rings.py` | 三环纪律扫描（0.4 规则，200 行内，违规包名列表） |
+| `tools/check_rings.py` | 三环纪律扫描（0.4 规则，200 行内，违规包名列表）+ **顶层包白名单校验（源码顶层包 ∈ 0.5 清单，R3，防 maid/ 类漂移）** |
 
 ### 平台接口签名（固定）
 
@@ -509,7 +509,7 @@ models: [ hakurei_reimu, kirisame_marisa, konpaku_youmu, izayoi_sakuya, flandre_
 ### 验收清单
 
 - [ ] `/tlm soul` 领魂符 → 右键顶面召唤 → 手中变空魂符（三态不变）；重启后女仆/好感/任务/背包全恢复
-- [ ] 魂符收纳→重启→释放全链保留（v1 行为回归）
+- [ ] 魂符收纳→重启→释放全链保留（三态行为回归）
 - [ ] quota：召唤满 2 只后第三次拒绝；送走（`/tlm release`，0.3 口径）不释放 quota 但 release 允许腾"非占用"说明——**注意**：release 删除 DB 记录时 quota **不减**（TLM 口径 [规格书 §12.5]），`/tlm admin quota <玩家> <数值>` 提供管理员修正
 
 ---
@@ -527,7 +527,7 @@ NPCRightClickEvent（api-facts 3.2：getClicker()）：
   3. 主手物品判定（按序短路）：
      a. 背包物品（CE id 或 config 判定）→ P6 换装逻辑（本阶段留 TODO 钩子，占位方法）
      b. 剪刀 → 卸下背包（P6）
-     c. 名牌 → 改名（消耗 1，≤32 字符，TLM §6.2；v1 的 /tlm rename 保留为等价入口）
+     c. 名牌 → 改名（消耗 1，≤32 字符，TLM §6.2——右键名牌是改名的唯一入口，R3 删"v1 rename 等价命令"表述）
      d. 魂符三态（TalismanListener 已在 P1 接管，此处不重复）
   4. 空手/其余 → 打开主菜单 GUI
 ```
@@ -798,7 +798,7 @@ combat: { radius: 12, lose-dist: 20, sweep-enabled: true, danmaku-interval-ticks
 ### 验收清单
 
 - [ ] 任务抽屉点击切换 22 任务 id 生效（本阶段 5 个攻击 + idle 有真实行为，其余灰置"未实装"——**注册全部 22 个壳**，未实装的 tick 空转 + GUI 显示禁用文案，防 P6 反复改 GUI）
-- [ ] 好感 384 档（80 血/6 攻）与 0 档（20 血/2 攻）血条与伤害实测差异（migrate-v1 造一只 384 的测试女仆）
+- [ ] 好感 384 档（80 血/6 攻）与 0 档（20 血/2 攻）血条与伤害实测差异（直接改 DB `favorability=384` → `/tlm admin reload` 造测试女仆；R3：原 migrate-v1 途径已随 v1 兼容废止）
 - [ ] 横扫：3 只僵尸贴脸 → 一刀全部掉血；主人被打群起反击；主人打女仆伤害被压
 - [ ] 弓：箭消耗/捡回循环（射 10 发 → 女仆捡回若干）；弹幕单发/扇面/耐久消耗
 - [ ] 三分类：村民/已驯服狼永不打；中立怪只有仇恨链内才打
@@ -979,7 +979,7 @@ film(maid) = CE 物品 touhoulittlemaid:film（缺失回落 Material.HEART_OF_TH
   PDC touhoulittlemaid:maid_id = maid.id；displayName "<name>的胶片"；不堆叠
 生成后优先塞主人背包，满 → 掉墓碑顶（Item 实体 setInvulnerable+setGlowing，v1 18.3-3 教训）
 胶片承载 = maids 行本身（state=FILM）——**胶片只是钥匙，数据在库**（v1 P10.4 绑定原则沿用：
-DB 是事实来源、凭证可补发；补发口 = /tlm film [女仆名]，铃铛态同款）
+DB 是事实来源、凭证可补发；补发口 = /tlm film [女仆名]）
 ```
 
 ### 神社复活（ShrineManager，[规格书 §12.4-1]）
@@ -1024,6 +1024,9 @@ DB 是事实来源、凭证可补发；补发口 = /tlm film [女仆名]，铃�
       volume 1.0, pitch 1.0) —— 16 格内玩家 [规格书 §9.2]；
 资源键规则：每个语音包构建时由 tools/voice_pack_builder.py 从 TLM jar 语音资产生成
   sounds.json：key = touhoulittlemaid:maid.<pack_id>.<短名><n>（n=1..实际数量），播放端随机取 n
+  （R3 注：voice_pack_builder.py 工具、生成的 sounds.json 键、ContentPlatform.playSoundAt 调用端
+   **三处必须同步用 `touhoulittlemaid:` 前缀**——任一处回落旧前缀即"资源在、命令在、没声音"
+   的静默故障，且会先误伤 V0-1 的排查方向）
 继承复用（[规格书 §9.1]，缺键回落）：range_attack/danmaku_attack → attack；
   farm/feed/shears/milk/torch/feed_animal/extinguishing/snow → idle；hurt_fire → hurt
 初始语音包：召唤时 75% "peco" / 25% "touhou" 随机 [规格书 §9.2]；GUI（P2 的语音选择）可换

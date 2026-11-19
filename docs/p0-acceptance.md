@@ -52,3 +52,22 @@
 ## 结论
 
 Phase 0 验收清单 **4/4 通过**；V0-1..V0-6 均有书面结论。可进入 Phase 1（领域核心与数据层）。
+
+## 附：CE 测试包 R2/R3 命名空间复核与重发（2026-11-19）
+
+按 AGENTS.md 6.1 说明义务留痕（对象为测试服 `plugins/CraftEngine/`，非仓库交付物）：
+
+- **改了什么**：`plugins/CraftEngine/resources/tlmtest/`（V0-1 音效探针包）三层核对——
+  `pack.yml` 的 `namespace`＝`touhoulittlemaid`；`configuration/sounds.yml` 事件键
+  `touhoulittlemaid:maid.hurt`、`sounds[].name` 写全限定名 `touhoulittlemaid:maid_hurt`；
+  音频落在 `resourcepack/assets/touhoulittlemaid/sounds/maid_hurt.ogg`。核对结果：三层均已处于
+  R2-1/R2-5 要求的新前缀（2026-11-18 重建产物，包内无 `catmaid` 残留），本轮**无内容改动**。
+- **操作**：执行 `ce reload all` 重建并重发资源包，确认 `generated/resource_pack.zip` 重新生成且仍包含
+  `assets/touhoulittlemaid/sounds.json`（键 `maid.hurt`）与 `maid_hurt.ogg`。
+- **目的**：关闭 R2 命名空间返工项，保证 V0-1 复跑时自定义音效不静音（相对名会解析成
+  `minecraft:` 前缀——R2-5 实测结论）。
+- **结果（2026-11-19 20:55 实测）**：`ce reload all` 成功——CE 重新加载 `tlmtest`（默认命名空间
+  `touhoulittlemaid`，`已加载sounds（1）`），`generated/resource_pack.zip` 与
+  `cache/hosted/default/resource_pack.zip` 均于 20:55:28 重建（9,156,867 B）；包内确认存在
+  `assets/touhoulittlemaid/sounds.json`（键 `maid.hurt`→`touhoulittlemaid:maid_hurt`）与
+  `assets/touhoulittlemaid/sounds/maid_hurt.ogg`，全包扫描无 `catmaid` 残留。

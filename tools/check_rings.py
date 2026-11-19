@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""三环纪律扫描（blueprint 0.4 / 0.11）。
+"""三环纪律扫描（blueprint 0.4 / 0.11）与顶层包白名单校验（blueprint 0.5 / R3-2）。
 
 环1 core.domain：只准 import JDK 与本项目包，出现任何 Bukkit/Paper/Citizens/BM/CE 即违规。
 环2 其余包（除 platform.impl）：不得出现 Citizens / BetterModel / CraftEngine 的类引用。
 环3 platform.impl：唯一允许直接对接三方 API 的落点。
+顶层包：dev.touhoulittlemaid 之后第一段必须命中 0.5 包结构清单，防止建立清单外顶层包。
 
 用法：python tools/check_rings.py [源码根目录]
 退出码：0 通过，1 有违规。
@@ -15,8 +16,16 @@ import re
 import sys
 from pathlib import Path
 
+PROJECT_PACKAGE = "dev.touhoulittlemaid"
 RING1_PACKAGE = "dev.touhoulittlemaid.core.domain"
 RING3_PACKAGE = "dev.touhoulittlemaid.platform.impl"
+
+# 顶层包白名单：以 blueprint 0.5 为准，0.5 变更时同步此表。
+# maid/ 为 R3-2 新增顶层包（不是 core/ 子包），后续包结构变动必须同步这里。
+TOP_LEVEL_PACKAGES = {
+    "core", "platform", "task", "maid", "bauble", "death", "voice",
+    "economy", "pack", "gui", "data", "event", "listener", "command", "util",
+}
 
 RING1_ALLOWED_PREFIXES = ("java.", "dev.touhoulittlemaid.")
 PLATFORM_MARKERS = ("org.bukkit", "io.papermc", "net.citizensnpcs", "kr.toxicity", "net.momirealms")
@@ -35,6 +44,14 @@ def scan_file(path: Path, root: Path) -> list[str]:
     package = package_of(text)
     rel = path.relative_to(root).as_posix()
     problems: list[str] = []
+
+    # 顶层包白名单（blueprint 0.5）：只校验本项目命名空间内的包声明。
+    if package == PROJECT_PACKAGE:
+        pass
+    elif package.startswith(PROJECT_PACKAGE + "."):
+        top_level = package[len(PROJECT_PACKAGE) + 1 :].split(".")[0]
+        if top_level not in TOP_LEVEL_PACKAGES:
+            problems.append(f"{rel}: 顶层包 {top_level} 不在 blueprint 0.5 白名单内")
 
     if package == RING1_PACKAGE or package.startswith(RING1_PACKAGE + "."):
         for match in IMPORT_RE.finditer(text):

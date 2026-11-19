@@ -2,7 +2,7 @@
 
 > 本文件是 Phase 0「依赖打通验证」的交付物。后续阶段写代码前必须先读本文件。
 > 标记约定：**[JAR]** = 从依赖 jar 用 `javap` 反编译确认；**[实测]** = 在本地 Paper 26.2 测试服实跑确认；**[待实测]** = 需要真实客户端人工验证。
-> 最后更新：2026-11-18（v2 P0：第 29 节为平台骨架静态 API 确认、blueprint 冲突处理与 V0 待验收清单；**同日 R2 服主终裁**：数据键命名空间 `catmaid:` → `touhoulittlemaid:`、v1 兼容整体废止、plugin.yml 用 softdepend+运行时自检——见第 29.4 节与 `docs/blueprint-revisions.md` R2）
+> 最后更新：2026-11-18（v2 P0：第 29 节为平台骨架静态 API 确认、blueprint 冲突处理与 V0 待验收清单；**同日 R2 服主终裁**：数据键命名空间 `catmaid:` → `touhoulittlemaid:`、v1 兼容整体废止、plugin.yml 用 softdepend+运行时自检——见第 29.4 节与 `docs/blueprint-revisions.md` R2）。**同日 R3**：maid/ 顶层包、顶层包白名单校验、`$` 前缀重写、语音键三处同步——见第 29.5 节与 `docs/blueprint-revisions.md` R3。**2026-11-19 R3 复验收口**：五项验收留证见第 29.6 节（客户端听感待实测）。
 
 **Phase 0 状态：已完成**（客户端实机验收通过）。
 **Phase 1 状态：已完成并收口**（服务端 6 项验收通过、模型外观客户端确认，详见第 11、15 节）。
@@ -2896,4 +2896,42 @@ CraftEngine 26.9.2；测试服 `winefox` 模型（自带 `RightHandLocator` 挂�
 4. AGENTS.md 已同步修订：1.6（命名空间）、6.1（`plugins/CraftEngine/` 修改解禁，改为"须说明修改
    内容与目的"——V0-1 的 CE 测试包操作自此合法，P0 窗口在阶段记录/台账留痕即可）、6.3（文档
    白名单加 `docs/blueprint-revisions.md`）。
+
+### 29.5 R3 裁决通告（2026-11-19，与 docs/blueprint-revisions.md R3 同步）
+
+1. **`maid/` 成为 0.5 合法顶层包**（R3-2）：P2 的 `NameTagManager` / `MaidVisibilityManager` /
+   `ModelPackManager` 归属 `maid/` 顶层包自此合法，零改动。措辞钉死：maid/ 是**顶层包**不是
+   子包，禁止在 core/ 下挂 maid/。
+2. **`tools/check_rings.py` 新增顶层包白名单校验**（R3-2）：源码顶层包 ∈ 0.5 清单即过，清单外
+   报错——机器防漂移，不依赖窗口自觉。
+3. **0.9 `$` 重写规则**（R3-4）：注入条目原键来自 TLM 资产命名空间，`$touhou_little_maid:`
+   必须重写为 `$touhoulittlemaid:`（M1 注入器义务）——否则 `$` 精确匹配静默失效、回落
+   `:category` 类别匹配，不报错只掉观感。
+4. **P10 语音键三处同步纪律**（R3-5）：voice_pack_builder.py 工具、生成的 sounds.json 键、
+   playSoundAt 调用端三处必须同步使用 `touhoulittlemaid:`，任一处回落旧前缀即"资源在、命令在、
+   没声音"的静默故障。
+5. **前缀消歧条款**（R3-3）：`touhoulittlemaid:`（本插件键）≠ `touhou_little_maid:`（TLM 资产
+   命名空间），只差下划线，**永不混用**；本文件历史各节中的 `catmaid:` 旧键仍按 29.4 第 1 条
+   理解，不受本轮影响。
+
+### 29.6 R3 复验收口记录（2026-11-19，R3 代码修正的验收留证）
+
+| 验收项 | 结论 | 证据 |
+|---|---|---|
+| 1. 三环扫描 + 白名单 | **通过** | `python tools/check_rings.py` 退出码 0（11 个 Java 文件）；负向验证：临时建 `dev.touhoulittlemaid.tst` 包后脚本报「顶层包 tst 不在 blueprint 0.5 白名单内」退出码 1，还原后复跑恢复 0——白名单真实拦截，非空转 |
+| 2. 全仓 `catmaid:` 扫描 | **通过（零命中）** | src/ 与 resources/（含 plugin.yml）grep 零命中；config.yml 本阶段尚不存在；命中仅在 docs/、blueprint.md、AGENTS.md 的历史记录引用（按用户口径不算） |
+| 3. CE 测试包前缀复验 | **服务端链路通过，客户端听感待实测** | 原 V0-1 测试包 `resources/tlmtest/` 与 Citizens、winefox 模型在测试服被清理，按 29.3/29.4 规格重建（pack.yml `namespace: touhoulittlemaid`、sounds.yml 键 `maid.hurt`、`name` 全限定 `touhoulittlemaid:maid_hurt`、`assets/touhoulittlemaid/sounds/maid_hurt.ogg`）。`ce reload all` 后 `generated/resource_pack.zip` 实测含 `assets/touhoulittlemaid/sounds.json` = `{"maid.hurt":{"sounds":[{"name":"touhoulittlemaid:maid_hurt"}]}}` 与 `maid_hurt.ogg`；`/tlm spike summon winefox` → `/tlm spike sound 2 touhoulittlemaid:maid.hurt` 服务端日志「已向附近玩家播放 touhoulittlemaid:maid.hurt」，无异常。**客户端听感为 [待实测]，测试方法见下** |
+| 4. shadowJar + 启动 | **通过** | `gradlew shadowJar` BUILD SUCCESSFUL；Paper 26.2-121 启动 0 ERROR（日志无 ERROR/Exception 指向本插件；剩余堆栈为既有第三方噪音：CE 自身 Java 26 bytebuddy hook、server.properties 纯文本 resource-pack-prompt 的 gson 解析 WARN，均早于本插件存在） |
+
+**第 3 项客户端实测方法**：进服（CE 合并包随进服自动下发）→ 控制台或聊天执行
+`/tlm spike summon winefox` 记下 npcId → `/tlm spike sound <npcId> touhoulittlemaid:maid.hurt`
+→ 应听到狐狸受击音（hurt1.ogg）。听不到时先查 sounds.yml `name` 是否漏写全限定名（V0-1 实测根因），
+再确认客户端确实收到了 CE 下发的资源包。
+
+**测试服环境修复留痕**（非蓝图变更，为本次复验的服主侧操作，按 6.1 留痕）：测试服曾被清理，
+本轮补装 Citizens 2.0.44-b4269（其 fastutil 8.5.16 从 v1 测试服 `libraries/` 复制，规避 maven
+镜像 Connection reset）、winefox.bbmodel（从本仓 `model_src/酒狐家族/winefox/` 复制）、
+重建 tlmtest 包；`server.properties` 临时开启 RCON（enable-rcon=true，用于无玩家时的控制台
+驱动验收）；无玩家在线时 NPC 实体不落地，需 `forceload add -288 -64` 强载区块后 `/tlm spike`
+才可交互。
 
