@@ -2,7 +2,7 @@
 
 > 本文件是 Phase 0「依赖打通验证」的交付物。后续阶段写代码前必须先读本文件。
 > 标记约定：**[JAR]** = 从依赖 jar 用 `javap` 反编译确认；**[实测]** = 在本地 Paper 26.2 测试服实跑确认；**[待实测]** = 需要真实客户端人工验证。
-> 最后更新：2026-11-18（v2 P0：第 29 节为平台骨架静态 API 确认、blueprint 冲突处理与 V0 待验收清单；**同日 R2 服主终裁**：数据键命名空间 `catmaid:` → `touhoulittlemaid:`、v1 兼容整体废止、plugin.yml 用 softdepend+运行时自检——见第 29.4 节与 `docs/blueprint-revisions.md` R2）。**同日 R3**：maid/ 顶层包、顶层包白名单校验、`$` 前缀重写、语音键三处同步——见第 29.5 节与 `docs/blueprint-revisions.md` R3。**2026-11-19 R3 复验收口**：五项验收留证见第 29.6 节（客户端听感待实测）。
+> 最后更新：2026-11-18（v2 P0：第 29 节为平台骨架静态 API 确认、blueprint 冲突处理与 V0 待验收清单；**同日 R2 服主终裁**：数据键命名空间 `catmaid:` → `touhoulittlemaid:`、v1 兼容整体废止、plugin.yml 用 softdepend+运行时自检——见第 29.4 节与 `docs/blueprint-revisions.md` R2）。**同日 R3**：maid/ 顶层包、顶层包白名单校验、`$` 前缀重写、语音键三处同步——见第 29.5 节与 `docs/blueprint-revisions.md` R3。**2026-11-19 R3 复验收口**：五项验收留证见第 29.6 节（客户端听感待实测）。**2026-11-20 更正**：验收服以 `D:\work\女仆插件\testserver` 为准，第 3、4 项已在该服重跑并留证（见 29.6 更正段）。
 
 **Phase 0 状态：已完成**（客户端实机验收通过）。
 **Phase 1 状态：已完成并收口**（服务端 6 项验收通过、模型外观客户端确认，详见第 11、15 节）。
@@ -2934,4 +2934,24 @@ CraftEngine 26.9.2；测试服 `winefox` 模型（自带 `RightHandLocator` 挂�
 重建 tlmtest 包；`server.properties` 临时开启 RCON（enable-rcon=true，用于无玩家时的控制台
 驱动验收）；无玩家在线时 NPC 实体不落地，需 `forceload add -288 -64` 强载区块后 `/tlm spike`
 才可交互。
+
+**更正（2026-11-20，服主指出后复核）**：上文第 3、4 项的运行时验证误在 `D:\work\paper26.2测试服`
+（Paper 26.2-121 / BetterModel 3.6.0-534 / CE 26.8.2，混有 JennyInteractions 等无关插件）执行，
+**不是本项目验收服**；服主侧污染（TLM jar、Citizens、winefox 模型、tlmtest 包、fastutil 8.5.16、
+RCON 开关）已全部还原。本项目验收服自 V0 起一直是 `D:\work\女仆插件\testserver`
+（Paper 26.2-135 / BetterModel 3.7.0-SNAPSHOT-541 / CE 26.9.2 / Citizens 2.0.44-b4269，
+与 29.3 记录逐项吻合；**后续阶段一律以它为准**）。已在该服重跑第 3、4 项，证据：
+
+- 第 4 项：Paper 26.2-135 启动 `[17:32:57] Done (18.105s)`，日志 0 ERROR（仅既有第三方噪音），
+  `[TLM] 已启用`、`已加载的包：tlmtest。默认命名空间：touhoulittlemaid`。
+- 第 3 项：测试服内 tlmtest 包本就按 R3 前缀三层齐备（namespace / 键 `touhoulittlemaid:maid.hurt` /
+  `assets/touhoulittlemaid/sounds/maid_hurt.ogg`），插件 jar 与当前构建 SHA256 一致
+  （FE8A403D…05AFA）；`ce reload all` 后 `generated/resource_pack.zip` 实测含
+  `assets/touhoulittlemaid/sounds.json` =
+  `{"maid.hurt":{"subtitle":"subtitles.touhoulittlemaid.maid_hurt","sounds":[{"name":"touhoulittlemaid:maid_hurt"}]}}`
+  与 `maid_hurt.ogg`；`/tlm spike summon winefox` → NPC 100（`spawned=true`、
+  **boneDisplays=122** 与 V0-2 基线一致、attackCooldown=1.0）；
+  `/tlm spike sound 100 touhoulittlemaid:maid.hurt` 服务端日志
+  「已向附近玩家播放 touhoulittlemaid:maid.hurt」，无异常。**客户端听感仍为 [待实测]**，
+  测试方法同上（服地址 `127.0.0.1:25566`，NPC 在 `world 34 71 10`）。
 
