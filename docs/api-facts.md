@@ -2,7 +2,7 @@
 
 > 本文件是 Phase 0「依赖打通验证」的交付物。后续阶段写代码前必须先读本文件。
 > 标记约定：**[JAR]** = 从依赖 jar 用 `javap` 反编译确认；**[实测]** = 在本地 Paper 26.2 测试服实跑确认；**[待实测]** = 需要真实客户端人工验证。
-> 最后更新：2026-11-18（v2 P0：第 29 节为平台骨架静态 API 确认、blueprint 冲突处理与 V0 待验收清单；**同日 R2 服主终裁**：数据键命名空间 `catmaid:` → `touhoulittlemaid:`、v1 兼容整体废止、plugin.yml 用 softdepend+运行时自检——见第 29.4 节与 `docs/blueprint-revisions.md` R2）。**同日 R3**：maid/ 顶层包、顶层包白名单校验、`$` 前缀重写、语音键三处同步——见第 29.5 节与 `docs/blueprint-revisions.md` R3。**2026-11-19 R3 复验收口**：五项验收留证见第 29.6 节（客户端听感待实测）。**2026-11-20 更正**：验收服以 `D:\work\女仆插件\testserver` 为准，第 3、4 项已在该服重跑并留证（见 29.6 更正段）。
+> 最后更新：2026-11-18（v2 P0：第 29 节为平台骨架静态 API 确认、blueprint 冲突处理与 V0 待验收清单；**同日 R2 服主终裁**：数据键命名空间 `catmaid:` → `touhoulittlemaid:`、v1 兼容整体废止、plugin.yml 用 softdepend+运行时自检——见第 29.4 节与 `docs/blueprint-revisions.md` R2）。**同日 R3**：maid/ 顶层包、顶层包白名单校验、`$` 前缀重写、语音键三处同步——见第 29.5 节与 `docs/blueprint-revisions.md` R3。**2026-11-19 R3 复验收口**：五项验收留证见第 29.6 节（客户端听感待实测）。**2026-11-20 更正**：验收服以 `D:\work\女仆插件\testserver` 为准，第 3、4 项已在该服重跑并留证（见 29.6 更正段）；**同日客户端听感实测通过**，五项验收全部闭环。
 
 **Phase 0 状态：已完成**（客户端实机验收通过）。
 **Phase 1 状态：已完成并收口**（服务端 6 项验收通过、模型外观客户端确认，详见第 11、15 节）。
@@ -2952,6 +2952,8 @@ RCON 开关）已全部还原。本项目验收服自 V0 起一直是 `D:\work\�
   与 `maid_hurt.ogg`；`/tlm spike summon winefox` → NPC 100（`spawned=true`、
   **boneDisplays=122** 与 V0-2 基线一致、attackCooldown=1.0）；
   `/tlm spike sound 100 touhoulittlemaid:maid.hurt` 服务端日志
-  「已向附近玩家播放 touhoulittlemaid:maid.hurt」，无异常。**客户端听感仍为 [待实测]**，
-  测试方法同上（服地址 `127.0.0.1:25566`，NPC 在 `world 34 71 10`）。
+  「已向附近玩家播放 touhoulittlemaid:maid.hurt」，无异常。**客户端听感已于同日 [实测] 通过**
+  （服主客户端进服 `127.0.0.1:25566` 收到 CE 资源包后执行
+  `/tlm spike sound 100 touhoulittlemaid:maid.hurt`，确认听到狐狸受击音 hurt1.ogg）——
+  V0-1 结论在 R3 新前缀下完整复验成立。
 
